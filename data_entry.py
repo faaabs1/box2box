@@ -52,6 +52,42 @@ def save_game(connection, league, game_date, game_time, round, home_team, away_t
     response = connection.schema('raw').table('games').insert(game_data).execute()
     return response
 
+def save_goal(connection, game_id, goal_for, goal_minute, own_goal, player_id=None):
+    goal_data = {
+        "game_id": game_id,
+        "goal_for": goal_for,
+        "goal_minute": goal_minute,
+        "own_goal": own_goal,
+        "player_id": player_id
+    }
+    response = connection.schema('raw').table('goals').insert(goal_data).execute()
+    return response
+
+def save_card(connection, game_id, player_id, minute, yc, rc, straight_rc):
+    card_data = {
+        "game_id": game_id,
+        "player_id": player_id,
+        "minute": minute,
+        "yellow_card": yc,
+        "red_card": rc,
+        "straight_red_card": straight_rc
+    }
+    response = connection.schema('raw').table('cards').insert(card_data).execute()
+    return response
+
+def save_lineup(connection, game_id, team_id, player_id, sub_in, sub_out, is_starter, minutes_played):
+    lineup_data = {
+        "game_id": game_id,
+        "team_id": team_id,
+        "player_id": player_id,
+        "sub_in": sub_in,
+        "sub_out": sub_out,
+        "is_starter": is_starter,
+        "minutes_played": minutes_played
+    }
+    response = connection.schema('raw').table('lineups').insert(lineup_data).execute()
+    return response
+
 
 
 def entry_game():
@@ -81,16 +117,17 @@ def max_game_id(connection):
     max_game_id = games_df['game_id'].max()
     return max_game_id
 
-def entry_goals(max_game_id):
+def entry_goals(max_game_id,home_team=None,away_team=None):
     #game_id = max_game_id
     print(fetch_teams(sb, False, max_game_id))
     goal_for = int(input("Goal For (1=Home, 0=Away): "))
     goal_min = int(input("Goal Minute: "))
     own_goal = int(input("Own Goal (1/0): "))
-    if own_goal == 0:
+    if own_goal == 0 and (home_team == 1 or away_team == 1):
         print(fetch_players(sb))
         player_id = int(input("Player ID: "))
     goal_minute = int(input("Goal Minute: "))
+    save_goal(sb, max_game_id, goal_for, goal_minute, own_goal, player_id)
 
 
 def entry_cards():
@@ -101,6 +138,7 @@ def entry_cards():
     yc = int(input("Yellow Card (1/0): "))
     rc = int(input("Red Card (1/0): "))
     straigt_rc = int(input("Straight Red Card (1/0): "))
+    save_card(sb, game_id, player_id, minute, yc, rc, straigt_rc)
 
 def enry_lineup():
     print(fetch_games(sb))
@@ -123,6 +161,7 @@ def enry_lineup():
         sub_in_min = int(input("Sub In Minute: "))
         sub_out_min = int(input("Sub Out Minute: "))
         minutes_played = sub_out_min - sub_in_min
+    save_lineup(sb, game_id, team_id, player_id, sub_in, sub_out, is_starter, minutes_played)
 
 
 if __name__ == "__main__":
