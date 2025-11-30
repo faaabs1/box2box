@@ -3,8 +3,48 @@ import os
 from dotenv import load_dotenv
 import pandas as pd
 import datetime as dt
+from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
+from dotenv import load_dotenv
+import os
+import psycopg2
+from config import MY_TEAM_ID, GAME_SITUATIONS
+
+
+
 
 def connect_db():
+
+    # Load environment variables from .env
+    load_dotenv()
+
+    # Fetch variables
+    USER = os.getenv("user")
+    PASSWORD = os.getenv("password")
+    HOST = os.getenv("host")
+    PORT = os.getenv("port")
+    DBNAME = os.getenv("dbname")
+
+    # Construct the SQLAlchemy connection string
+    DATABASE_URL = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}?sslmode=require"
+
+    # Create the SQLAlchemy engine
+    #engine = create_engine(DATABASE_URL)
+    # If using Transaction Pooler or Session Pooler, we want to ensure we disable SQLAlchemy client side pooling -
+    # https://docs.sqlalchemy.org/en/20/core/pooling.html#switching-pool-implementations
+    engine = create_engine(DATABASE_URL, poolclass=NullPool)
+
+    # Test the connection
+    try:
+        with engine.connect() as connection:
+            print("Connection successful!")
+    except Exception as e:
+        print(f"Failed to connect: {e}")
+
+
+
+
+def connect_db_api():
     load_dotenv()
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -21,9 +61,9 @@ def fetch_teams(connection, option:bool, game_id=None):
 
 def fetch_players(connection,opion:bool, team_id=None):
     if opion == True:
-        players = connection.schema('raw').table('players').select('player_id','player_name').execute()
+        players = connection.schema('raw').table('players').select('player_id','lastname').execute()
     else:
-        players = connection.schema('raw').table('players').select('player_id','player_name').eq('team_id', team_id).execute()
+        players = connection.schema('raw').table('players').select('player_id','lastname').execute()
     players_df = pd.DataFrame(players.data)
     return players_df
 
@@ -52,13 +92,14 @@ def save_game(connection, league, game_date, game_time, round, home_team, away_t
     response = connection.schema('raw').table('games').insert(game_data).execute()
     return response
 
-def save_goal(connection, game_id, goal_for, goal_minute, own_goal, player_id=None):
+def save_goal(connection, game_id, goal_minute, player_id = None, situation = None, own_goal = 0, goal_for=None):
     goal_data = {
         "game_id": game_id,
-        "goal_for": goal_for,
-        "goal_minute": goal_minute,
+        "goal_min": goal_minute,
+        "player_id": player_id,
+        "game_situation": situation,
         "own_goal": own_goal,
-        "player_id": player_id
+        "goal_for": goal_for
     }
     response = connection.schema('raw').table('goals').insert(goal_data).execute()
     return response
@@ -78,12 +119,12 @@ def save_card(connection, game_id, player_id, minute, yc, rc, straight_rc):
 def save_lineup(connection, game_id, team_id, player_id, sub_in, sub_out, is_starter, minutes_played):
     lineup_data = {
         "game_id": game_id,
-        "team_id": team_id,
         "player_id": player_id,
+        "min_played": minutes_played,
         "sub_in": sub_in,
         "sub_out": sub_out,
-        "is_starter": is_starter,
-        "minutes_played": minutes_played
+        "started": is_starter,
+        "team_id": team_id
     }
     response = connection.schema('raw').table('lineups').insert(lineup_data).execute()
     return response
@@ -92,7 +133,7 @@ def save_lineup(connection, game_id, team_id, player_id, sub_in, sub_out, is_sta
 
 def entry_game():
     print(fetch_leagues(sb))
-    league = input("League: ")
+    league = int(input("League: "))
     game_year = int(input("Year: "))
     game_month = int(input("Month: "))
     game_day = int(input("Game Day: "))
@@ -102,75 +143,124 @@ def entry_game():
     game_time = dt.time(game_hour,game_min)
     round = int(input("Round: "))
     print(fetch_teams(sb, True))
-    home_team = input("Home Team: ")
+    home_team = int(input("Home Team: "))
     print(fetch_teams(sb, True))
-    away_team = input("Away Team: ")
+    away_team = int(input("Away Team: "))
     home_goals = int(input("Home Goals: "))
     away_goals = int(input("Away Goals: "))
     game_attendance = int(input("Game Attendance: "))
     save_game(sb, league, game_date, game_time, round, home_team, away_team, home_goals, away_goals, game_attendance)
-    return home_team, away_team, home_goals, away_goals
+    return {home_team:home_goals, away_team:away_goals}
 
 def max_game_id(connection):
     games = connection.schema('raw').table('games').select('game_id').execute()
     games_df = pd.DataFrame(games.data)
     max_game_id = games_df['game_id'].max()
+    max_game_id = int(max_game_id)
     return max_game_id
 
-def entry_goals(max_game_id,home_team=None,away_team=None):
-    #game_id = max_game_id
-    print(fetch_teams(sb, False, max_game_id))
-    goal_for = int(input("Goal For (1=Home, 0=Away): "))
-    goal_min = int(input("Goal Minute: "))
-    own_goal = int(input("Own Goal (1/0): "))
-    if own_goal == 0 and (home_team == 1 or away_team == 1):
-        print(fetch_players(sb))
+def entry_goals(max_game_id,dict_game:dict):
+    for team_id,goals in dict_game.items():
+        if goals > 0:
+            for i in range(goals):
+                print(f"\n--- Entering {goals} goals for Team {team_id} ---")
+                goal_for = team_id
+                goal_min = int(input("Goal Minute: "))
+                own_goal = int(input("Own Goal (1/0): "))
+                situation = GAME_SITUATIONS[int(input(f"Game Situation: "))]
+                if own_goal == 0 and team_id == MY_TEAM_ID:
+                    print(fetch_players(sb, False, team_id))
+                    try:
+                        player_id = int(input(f"Player ID for Team {team_id}: "))
+                    except ValueError:
+                        print("Invalid input, saving as None.")
+                        player_id = int(input(f"Player ID for Team {team_id}: "))
+                    save_goal(sb, max_game_id, goal_min, player_id,situation,own_goal, goal_for)
+                    print("Goals saved!")
+                else:
+                    player_id = None
+                    save_goal(sb, max_game_id, goal_min,player_id,situation,own_goal, goal_for)
+                    print("Goals saved!")
+
+
+def entry_cards(game_id, dict_game:dict):
+    cards = int(input("Number of Cards to enter: "))
+    for i in range(cards):
         player_id = int(input("Player ID: "))
-    goal_minute = int(input("Goal Minute: "))
-    save_goal(sb, max_game_id, goal_for, goal_minute, own_goal, player_id)
+        minute = int(input("Minute: "))
+        yc = int(input("Yellow Card (1/0): "))
+        rc = int(input("Red Card (1/0): "))
+        straigt_rc = int(input("Straight Red Card (1/0): "))
+        save_card(sb, game_id, player_id, minute, yc, rc, straigt_rc)
 
 
-def entry_cards():
-    print(fetch_games(sb))
-    game_id = int(input("Game ID: "))
-    player_id = int(input("Player ID: "))
-    minute = int(input("Minute: "))
-    yc = int(input("Yellow Card (1/0): "))
-    rc = int(input("Red Card (1/0): "))
-    straigt_rc = int(input("Straight Red Card (1/0): "))
-    save_card(sb, game_id, player_id, minute, yc, rc, straigt_rc)
-
-def enry_lineup():
-    print(fetch_games(sb))
-    game_id = int(input("Game ID: "))
-    print(fetch_teams(sb, False, game_id))
-    team_id = int(input("Team ID: "))
-
-    player_id = int(input("Player ID: "))
-    sub_in = int(input("Sub In (1/0): "))
-    sub_out = int(input("Sub Out (1/0): ")) 
-    is_starter = int(input("Is Starter (1/0): "))
-    if is_starter == 1 and sub_out == 0:
-        minutes_played = 90
-    elif is_starter == 1 and sub_out == 1:
-        minutes_played = int(input("Minutes Played: "))
-    elif is_starter == 0 and sub_in == 1:
+def entry_lineup(game_id):
+    subs = 0
+    for _ in range(11):
+        team_id = 1
+        print(fetch_players(sb,False, team_id))
+        player_id = int(input("Player ID: "))
+        sub_in = 0
+        sub_out = int(input("Sub Out (1/0): "))
+        if sub_out == 1:
+            subs+=1
+        if sub_in == 0:
+            is_starter = 1
+        else:
+            is_starter = 0
+        if is_starter == 1 and sub_out == 0:
+            minutes_played = 90
+        elif is_starter == 1 and sub_out == 1:
+            minutes_played = int(input("Minutes Played: "))
+        elif is_starter == 0 and sub_in == 1:
+            sub_in_min = int(input("Sub In Minute: "))
+            minutes_played = 90 - sub_in_min
+        elif is_starter == 0 and sub_in == 1 and sub_out == 1:
+            sub_in_min = int(input("Sub In Minute: "))
+            sub_out_min = int(input("Sub Out Minute: "))
+            minutes_played = sub_out_min - sub_in_min
+        save_lineup(sb, game_id, team_id, player_id, sub_in, sub_out, is_starter, minutes_played)
+    sub_in_out = 0
+    
+    for _ in range(subs):
+        team_id = 1
+        print(fetch_players(sb,False, team_id))
+        player_id = int(input("Player ID: "))
+        is_starter = 0
+        sub_in = 1
         sub_in_min = int(input("Sub In Minute: "))
-        minutes_played = 90 - sub_in_min
-    elif is_starter == 0 and sub_in == 1 and sub_out == 1:
+        sub_out = int(input("Sub Out (1/0): "))
+        if sub_out == 1:
+            sub_out_min = int(input("Sub Out Minute: "))
+            minutes_played = sub_out_min - sub_in_min
+            sub_in_out +1
+        else:
+            minutes_played = 90 - sub_in_min
+        save_lineup(sb, game_id, team_id, player_id, sub_in, sub_out, is_starter, minutes_played)
+    
+    for _ in range(sub_in_out):
+        team_id = 1
+        print(fetch_players(sb,False, team_id))
+        player_id = int(input("Player ID: "))
+        is_starter = 0
+        sub_in = 1
         sub_in_min = int(input("Sub In Minute: "))
+        sub_out = 1
         sub_out_min = int(input("Sub Out Minute: "))
         minutes_played = sub_out_min - sub_in_min
-    save_lineup(sb, game_id, team_id, player_id, sub_in, sub_out, is_starter, minutes_played)
+        save_lineup(sb, game_id, team_id, player_id, sub_in, sub_out, is_starter, minutes_played)
 
 
 if __name__ == "__main__":
-    sb = connect_db()
-    home_team, away_team, home_goals, away_goals = entry_game()
-    if (home_team == 1 or away_team == 1):
-        for goals in range(home_goals):
-            entry_goals(max_game_id(sb))
-        for goals in range(away_goals):
-            entry_goals(max_game_id(sb))
-        entry_cards(max_game_id(sb))
-        enry_lineup(max_game_id(sb))
+    sb = connect_db_api()
+    #sb = connect_db()
+    dict_game = entry_game()
+    current_game_id = max_game_id(sb)
+    teams_playing = list(dict_game.keys())
+    entry_goals(current_game_id, dict_game)
+    if MY_TEAM_ID in teams_playing:
+        print(f"My Team ({MY_TEAM_ID}) played! Entering details...")
+        entry_lineup(current_game_id) 
+        entry_cards(current_game_id)
+    else:
+        print("My Team did not play. Skipping details.")
