@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: box2box_raw
+    database: postgres
+    schema: raw
+    tables:
+      - name: games
+      - name: goals
+      - name: teams
+      - name: leagues
+      - name: lineups
+      - name: players
