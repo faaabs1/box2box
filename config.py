@@ -7,3 +7,10 @@ GAME_SITUATIONS = {
     5: "Counter Attack",
     6: "Other"
 }
+
+CARD_REASONS = {
+    1: "Foul",
+    2: "Unsportlichkeit",
+    3: "Kritik",
+    4: "Other"
+}

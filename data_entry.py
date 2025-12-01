@@ -6,7 +6,7 @@ import datetime as dt
 from sqlalchemy import create_engine
 from sqlalchemy.pool import NullPool
 import psycopg2
-from config import MY_TEAM_ID, GAME_SITUATIONS
+from config import MY_TEAM_ID, GAME_SITUATIONS, CARD_REASONS
 
 def connect_db():
 
@@ -185,17 +185,30 @@ def entry_goals(max_game_id,dict_game:dict):
 def entry_cards(game_id):
     cards = int(input("Number of Cards to enter: "))
     for i in range(cards):
+        team_id = MY_TEAM_ID
+        print(fetch_players(sb, team_id))
         player_id = int(input("Player ID: "))
         minute = int(input("Minute: "))
         yc = int(input("Yellow Card (1/0): "))
-        rc = int(input("Red Card (1/0): "))
-        straigt_rc = int(input("Straight Red Card (1/0): "))
+        if yc == 1: 
+            rc = 0
+            straigt_rc = 0
+        else:
+            yc_reason = CARD_REASONS[int(input("Yellow Card Reason: "))]
+            rc = int(input("Red Card (1/0): "))
+            if rc == 1:
+                straigt_rc = int(input("Straight Red Card (1/0): "))
+            else:
+                straigt_rc = 0
+        #rc = int(input("Red Card (1/0): "))
+        #straigt_rc = int(input("Straight Red Card (1/0): "))
         save_card(sb, game_id, player_id, minute, yc, rc, straigt_rc)
 
 
 def entry_lineup(game_id):
+    print("--- Entering Starting Lineup ---")
     subs = 0
-    for _ in range(11):
+    for i in range(11):
         team_id = MY_TEAM_ID
         print(fetch_players(sb,team_id))
         player_id = int(input("Player ID: "))
@@ -218,9 +231,11 @@ def entry_lineup(game_id):
             sub_in_min = int(input("Sub In Minute: "))
             sub_out_min = int(input("Sub Out Minute: "))
             minutes_played = sub_out_min - sub_in_min
+        print(f'Player {i} added.')
         save_lineup(sb, game_id, player_id, minutes_played, sub_in, sub_out, is_starter,team_id)
     
     sub_in_out = 0
+    print(f"--- Entering Substitutions: {subs} ---")
     for _ in range(subs):
         team_id = MY_TEAM_ID
         print(fetch_players(sb,team_id))
@@ -235,8 +250,10 @@ def entry_lineup(game_id):
             sub_in_out +1
         else:
             minutes_played = 90 - sub_in_min
+        print(f'Player substitution added.')
         save_lineup(sb, game_id, player_id, minutes_played, sub_in, sub_out, is_starter,team_id)
     
+    print(f"--- Entering {sub_in_out} Substitutions In/Out ---")
     for _ in range(sub_in_out):
         team_id = MY_TEAM_ID
         print(fetch_players(sb,team_id))
@@ -247,6 +264,7 @@ def entry_lineup(game_id):
         sub_out = 1
         sub_out_min = int(input("Sub Out Minute: "))
         minutes_played = sub_out_min - sub_in_min
+        print(f'Player substitution in/out added.')
         save_lineup(sb, game_id, player_id, minutes_played, sub_in, sub_out, is_starter,team_id)
 
 
@@ -260,6 +278,6 @@ if __name__ == "__main__":
     if MY_TEAM_ID in teams_playing:
         print(f"My Team ({MY_TEAM_ID}) played! Entering details...")
         entry_lineup(current_game_id) 
-        entry_cards(current_game_id)
+        #entry_cards(current_game_id)
     else:
         print("My Team did not play. Skipping details.")
