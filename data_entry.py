@@ -60,9 +60,9 @@ def fetch_teams(connection, game_id=None):
 
 def fetch_players(connection, team_id=None):
     if team_id is None:
-        players = connection.schema('raw').table('players').select('player_id','lastname').execute()
+        players = connection.schema('raw').table('players').select('player_id','firstname','lastname').execute()
     else:
-        players = connection.schema('raw').table('players').select('player_id','lastname').execute()
+        players = connection.schema('analytics').table('active_rosters').select('player_id','firstname','lastname').eq('team_id',team_id).execute()
     players_df = pd.DataFrame(players.data)
     return players_df
 
