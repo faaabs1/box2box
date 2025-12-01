@@ -24,6 +24,10 @@ class FootballRepository:
                 .select('player_id, firstname, lastname') \
                 .eq('team_id', team_id).execute()
         return pd.DataFrame(response.data)
+    
+    def fetch_team_goals(self):
+        response = self.sb.schema('analytics').table('team_goals').select('*').execute()
+        return pd.DataFrame(response.data)
 
     def get_max_game_id(self):
         response = self.sb.schema('raw').table('games') \
