@@ -29,13 +29,16 @@ class MatchEntryCLI:
         # 3. Goals
         self.entry_goals()
 
+        # 4. Cards
+        self.entry_cards() # Uncomment when ready
+
         # 4. Check if My Team played
         if MY_TEAM_ID in self.teams_involved:
             print(f"My Team ({MY_TEAM_ID}) played. Entering details...")
             self.entry_lineup()
-            # self.entry_cards() # Uncomment when ready
+            
         else:
-            print("My Team did not play. Skipping lineup/cards.")
+            print("My Team did not play. Skipping lineup.")
 
     def entry_game_details(self):
         print(self.repo.fetch_leagues())
@@ -185,3 +188,30 @@ class MatchEntryCLI:
         }
         self.repo.save_lineup(payload)
         print("Lineup entry saved.")
+    
+    # def entry_cards(self):
+    #     print("\n--- Entering Cards ---")
+    #     for team_id,_ in self.teams_involved.items():
+       
+    #         num_cards = get_int("Number of Cards to enter: ")
+            
+    #         for i in range(num_cards):
+    #             print(f"\nCard {i+1}/{num_cards}")
+    #             player_id = None
+    #             if team_id == MY_TEAM_ID:
+    #                 print(self.repo.fetch_roster(MY_TEAM_ID))
+    #                 player_id = get_int("Player ID: ")
+    #             card_min = get_int("Card Minute: ")
+    #             yc = get_int("Yellow Cards so far? (1/0): ")
+    #             rc = get_int("Red Cards so far? (1/0): ")
+
+            
+    #             payload = {
+    #                 "game_id": self.current_game_id,
+    #                 "player_id": player_id,
+    #                 "card_min": card_min,
+    #                 "card_type": card_type,
+    #                 "team_id": team_id
+    #             }
+    #             self.repo.save_card(payload)
+    #             print("Card entry saved.")
