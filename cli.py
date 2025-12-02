@@ -1,6 +1,6 @@
 # cli.py
 import datetime as dt
-from config import MY_TEAM_ID, GAME_SITUATIONS 
+from config import MY_TEAM_ID, GAME_SITUATIONS, CARD_REASONS
 
 # Helper function can live here or in a utils.py
 def get_int(prompt):
@@ -189,29 +189,38 @@ class MatchEntryCLI:
         self.repo.save_lineup(payload)
         print("Lineup entry saved.")
     
-    # def entry_cards(self):
-    #     print("\n--- Entering Cards ---")
-    #     for team_id,_ in self.teams_involved.items():
-       
-    #         num_cards = get_int("Number of Cards to enter: ")
+    def entry_cards(self):
+        print("\n--- Entering Cards ---")
+        for team_id,_ in self.teams_involved.items():
             
-    #         for i in range(num_cards):
-    #             print(f"\nCard {i+1}/{num_cards}")
-    #             player_id = None
-    #             if team_id == MY_TEAM_ID:
-    #                 print(self.repo.fetch_roster(MY_TEAM_ID))
-    #                 player_id = get_int("Player ID: ")
-    #             card_min = get_int("Card Minute: ")
-    #             yc = get_int("Yellow Cards so far? (1/0): ")
-    #             rc = get_int("Red Cards so far? (1/0): ")
+            while True:
+                print(f"[{team_id}]: New Card Entry")
+                player_id = None
+                if team_id == MY_TEAM_ID:
+                    print(self.repo.fetch_roster(MY_TEAM_ID))
+                    player_id = get_int("Player ID: ")
+                card_min = get_int("Card Minute: ")
+                yc = get_int("Yellow Cards? (1/0): ")
+                if yc == 0:
+                    rc = get_int("Red Cards so far? (1/0): ") 
+                    straight_red = get_int("Straight Red? (1/0): ")
+                    if straight_red == 0:
+                        first_card_id = get_int("First Card ID: ")
+                print(self.repo.fetch_card_ids(team_id))
+                card_reason = CARD_REASONS[get_int(f"Card Reason: ")]
+                add = get_int("Add another card? (1=Yes, 0=No): ")
+                if add == 0:
+                    break
 
-            
-    #             payload = {
-    #                 "game_id": self.current_game_id,
-    #                 "player_id": player_id,
-    #                 "card_min": card_min,
-    #                 "card_type": card_type,
-    #                 "team_id": team_id
-    #             }
-    #             self.repo.save_card(payload)
-    #             print("Card entry saved.")
+                payload = {
+                    "game_id": self.current_game_id,
+                    "player_id": player_id,
+                    "min": card_min,
+                    "yellow_card": yc,
+                    "red_card": rc if rc in locals() else None,
+                    "straight_red": straight_red if straight_red in locals() else None,
+                    "team_id": team_id,
+                    "first_card_id": first_card_id if first_card_id in locals() else None
+                }
+                self.repo.save_card(payload)
+                print("Card entry saved.")

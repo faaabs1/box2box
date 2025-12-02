@@ -35,6 +35,10 @@ class FootballRepository:
         if response.data:
             return int(response.data[0]['game_id'])
         return 0
+    
+    def fetch_card_ids(self,team_id):
+        response = self.sb.schema('raw').table('cards').select('card_id','card_min').eq('team_id',team_id).execute()
+        return pd.DataFrame(response.data)
 
     # --- SAVE METHODS ---
     def save_game(self, payload):
@@ -48,3 +52,4 @@ class FootballRepository:
 
     def save_lineup(self, payload):
         return self.sb.schema('raw').table('lineups').insert(payload).execute()
+    
