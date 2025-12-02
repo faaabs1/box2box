@@ -3,6 +3,7 @@ import pandas as pd
 import altair as alt
 from database import DatabaseClient
 from repository import FootballRepository
+from numpy import percentile
 
 # 1. Page Config
 st.set_page_config(page_title="Box2Box Analytics", page_icon="⚽", layout="wide")
@@ -33,9 +34,18 @@ team_goals = load_data()
 team_goals['home_goals'] = team_goals['home_goals'].fillna(0)
 team_goals['away_goals'] = team_goals['away_goals'].fillna(0)
 team_goals['total_goals'] = team_goals['total_goals'].fillna(0)
+
 team_goals['avg_goals_game'] = team_goals.apply(lambda x: x['total_goals'] / x['total_games'] if x['total_games'] > 0 else 0, axis=1)
 team_goals['avg_goals_home'] = team_goals.apply(lambda x: x['home_goals'] / x['home_games'] if x['home_games'] > 0 else 0, axis=1)
 team_goals['avg_goals_away'] = team_goals.apply(lambda x: x['away_goals'] / x['away_games'] if x['away_games'] > 0 else 0, axis=1)
+
+goals_league_avg = team_goals['total_goals'].mean()
+goals_league_avg_home = team_goals['home_goals'].mean()
+goals_league_avg_away = team_goals['away_goals'].mean()
+
+goals_league_75th = percentile(team_goals['total_goals'],75)
+goals_league_75th_home = percentile(team_goals['home_goals'],75)
+goals_league_75th_away = percentile(team_goals['away_goals'],75)
 
 
 
@@ -53,19 +63,38 @@ selected_teams = st.sidebar.selectbox(
 # Filter the dataframe
 filtered_df = team_goals[team_goals['team_name'] == selected_teams]
 
+
+
+league_avg_goals = filtered_df['total_goals'].sum()-goals_league_avg
+league_avg_goals = league_avg_goals.round(2)
+
+league_avg_goals_home = filtered_df['home_goals'].sum()-goals_league_avg_home
+league_avg_goals_home = league_avg_goals_home.round(2)
+
+league_avg_goals_away = filtered_df['away_goals'].sum()-goals_league_avg_away
+league_avg_goals_away = league_avg_goals_away.round(2)
+
+league_75th_goals = (filtered_df['total_goals'].sum()-goals_league_75th)
+
+league_75th_goals_home = (filtered_df['home_goals'].sum()-goals_league_75th_home)
+
+league_75th_goals_away = (filtered_df['away_goals'].sum()-goals_league_75th_away)
+
 # 6. Main Dashboard
 st.title("⚽ Box2Box Analytics")
-st.markdown("Performance metrics for Home and Away games.")
+st.markdown(f"Performance metrics for **{selected_teams}**")
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Total Goals", int(filtered_df['total_goals']))
-col2.metric("Home Goals", int(filtered_df['home_goals']))
-col3.metric("Away Goals", int(filtered_df['away_goals']))
+col1.metric("Total Goals",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True)
+col2.metric("Home Goals", int(filtered_df['home_goals']),f"{league_75th_goals_home} vs. 75th percentile",border=True)
+col3.metric("Away Goals", int(filtered_df['away_goals']),f"{league_75th_goals_away} vs. 75th percentile",border=True)
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Avg Goals/Game", f"{filtered_df['avg_goals_game'].mean():.2f}")
-col2.metric("Avg Home Goals", f"{filtered_df['avg_goals_home'].mean():.2f}")
-col3.metric("Avg Away Goals", f"{filtered_df['avg_goals_away'].mean():.2f}")
+
+
+# col1, col2, col3 = st.columns(3)
+# col1.metric("Avg Goals/Game", f"{filtered_df['avg_goals_game'].mean():.2f}")
+# col2.metric("Avg Home Goals", f"{filtered_df['avg_goals_home'].mean():.2f}")
+# col3.metric("Avg Away Goals", f"{filtered_df['avg_goals_away'].mean():.2f}")
 
 st.divider()
 

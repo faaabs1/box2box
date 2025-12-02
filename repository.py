@@ -40,6 +40,10 @@ class FootballRepository:
         response = self.sb.schema('raw').table('cards').select('card_id','card_min').eq('team_id',team_id).execute()
         return pd.DataFrame(response.data)
 
+    def fetch_player_stats(self):
+        response = self.sb.schema('analytics').table('player_info').select('player_name','minutes_total','starts_total','goals_total').execute()
+        return pd.DataFrame(response.data)
+
     # --- SAVE METHODS ---
     def save_game(self, payload):
         return self.sb.schema('raw').table('games').insert(payload).execute()
