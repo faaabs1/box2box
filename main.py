@@ -1,7 +1,7 @@
 # main.py
-from database import DatabaseClient
-from repository import FootballRepository
-from cli import MatchEntryCLI
+from db_conn.database import DatabaseClient
+from data_entry.repository import FootballRepository
+from data_entry.cli import MatchEntryCLI
 
 if __name__ == "__main__":
     try:

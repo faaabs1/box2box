@@ -80,6 +80,8 @@ final as (
         p.firstname || ' ' || p.lastname as player_name,
         p.player_id,
         ls.team_id,
+        p.jersey_number,
+        p.position1,
         
         -- Home Stats
         coalesce(ls.minutes_home, 0) as minutes_home,
@@ -87,7 +89,7 @@ final as (
         coalesce(ls.starts_home, 0) as starts_home,
         
         -- Away Stats
-        coalesce(ls.minutes_away, 0) as minutes_away,
+        coalesce(ls.minutes_away, 0) as minutes_away,   
         coalesce(gs.goals_away, 0) as goals_away,
         coalesce(ls.starts_away, 0) as starts_away,
         

@@ -41,7 +41,10 @@ class FootballRepository:
         return pd.DataFrame(response.data)
 
     def fetch_player_stats(self):
-        response = self.sb.schema('analytics').table('player_info').select('player_name','minutes_total','starts_total','goals_total').execute()
+        response = self.sb.schema('analytics').table('player_info')\
+        .select('player_name','minutes_total','starts_total','goals_total','position1','jersey_number')\
+        .order('jersey_number',desc=False)\
+        .execute()
         return pd.DataFrame(response.data)
 
     # --- SAVE METHODS ---

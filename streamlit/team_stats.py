@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from database import DatabaseClient
-from repository import FootballRepository
+from db_conn.database import DatabaseClient
+from data_entry.repository import FootballRepository
 from numpy import percentile
 
 # 1. Page Config
@@ -49,19 +49,16 @@ goals_league_75th_away = percentile(team_goals['away_goals'],75)
 
 
 
+# # 5. Sidebar Filters
+# st.sidebar.header("Filters")
 
-
-
-
-# 5. Sidebar Filters
-st.sidebar.header("Filters")
-selected_teams = st.sidebar.selectbox(
-    "Select Teams",
-    options=team_goals['team_name'].sort_values().unique()
-)
+# selected_teams = st.sidebar.selectbox(
+#     "Select Teams",
+#     options=team_goals['team_name'].sort_values().unique()
+# )
 
 # Filter the dataframe
-filtered_df = team_goals[team_goals['team_name'] == selected_teams]
+filtered_df = team_goals[team_goals['team_name'] == st.session_state.team]
 
 
 
@@ -82,7 +79,7 @@ league_75th_goals_away = (filtered_df['away_goals'].sum()-goals_league_75th_away
 
 # 6. Main Dashboard
 st.title("⚽ Box2Box Analytics")
-st.markdown(f"Performance metrics for **{selected_teams}**")
+st.markdown(f"Performance metrics for **{st.session_state.team}**")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Goals",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True)
