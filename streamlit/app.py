@@ -1,5 +1,4 @@
-import sys
-sys.path.append('box2box')
+
 import streamlit as st
 from db_conn.database import DatabaseClient
 from data_entry.repository import FootballRepository
