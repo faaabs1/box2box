@@ -8,4 +8,11 @@ End to end project for football analytics
 - Lineup information \
 - Card information \
 
+Database used: Supabase
+Flow of data: 
+1) data entry through main.py: moves data to supabase raw schema
+2) dbt process: transforms data and moves it into supabase analytics schema
+3) data is visualized in the streamlit app
+
+
 
