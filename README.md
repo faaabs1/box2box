@@ -1,6 +1,6 @@
 # box2box
 End to end project for football analytics
-deployed under  **[box2box.steramlit.app]**
+deployed under  **box2box.steramlit.app**
 
 ## Project description: 
 Goal of the project: 
