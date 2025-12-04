@@ -1,12 +1,7 @@
-import streamlit as st
+#app.py
 import sys
 import os
 
-# -----------------------------------------------------------------------------
-# CRITICAL PATH FIX: MUST BE AT THE VERY TOP
-# -----------------------------------------------------------------------------
-# This block tells the deployed server to look in the parent folder (box2box)
-# so it can find 'db_conn' and 'data_entry'.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir) 
 sys.path.append(parent_dir)
