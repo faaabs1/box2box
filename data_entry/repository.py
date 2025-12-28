@@ -10,8 +10,8 @@ class FootballRepository:
         response = self.sb.schema('raw').table('leagues').select('league_id, league_name').execute()
         return pd.DataFrame(response.data)
 
-    def fetch_teams(self, game_id=None):
-        query = self.sb.schema('raw').table('teams').select('team_id, team_name')
+    def fetch_teams(self, league_id, game_id=None):
+        query = self.sb.schema('analytics').table('active_league').select('team_id, team_name').eq('league_id', league_id)
         if game_id:
             query = query.eq('game_id', game_id)
         response = query.execute()
@@ -28,7 +28,17 @@ class FootballRepository:
     def fetch_team_goals(self):
         response = self.sb.schema('analytics').table('team_goals').select('*').execute()
         return pd.DataFrame(response.data)
-
+    
+    def fetch_max_playerid(self):
+        response = self.sb.schema('raw').table('players') \
+            .select('player_id, firstname, lastname') \
+            .order('player_id', desc=True) \
+            .limit(1) \
+            .execute()
+        if response.data:
+            return int(response.data[0]['player_id'])
+        return 0
+    
     def get_max_game_id(self):
         response = self.sb.schema('raw').table('games') \
             .select('game_id').order('game_id', desc=True).limit(1).execute()
@@ -60,3 +70,33 @@ class FootballRepository:
     def save_lineup(self, payload):
         return self.sb.schema('raw').table('lineups').insert(payload).execute()
     
+    def save_player_to_player(self, payload):
+        return self.sb.schema('raw').table('players').insert(payload).execute()
+    
+    def save_player_contract(self, payload):
+        return self.sb.schema('raw').table('player_contracts').insert(payload).execute()
+    
+
+    # --- CREATE METHODS ---
+    def create_new_player(self,team_id):
+        #player table
+        firstname = input("First Name: ")
+        lastname = input("Last Name: ")
+       
+       #player_contract 
+        valid_from = input("Contract Valid From (YYYY-MM-DD): ")
+
+        # Prepare Payload
+        payload_player = {
+            "firstname": firstname,
+            "lastname": lastname
+        }
+        self.save_player_to_player(payload_player)
+
+        # Prepare Payload for Player Contract
+        payload_contract = {
+            "player_id": self.fetch_max_playerid(),
+            "team_id": team_id,
+            "valid_from": valid_from
+        }
+        self.save_player_contract(payload_contract)

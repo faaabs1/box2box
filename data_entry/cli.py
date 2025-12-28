@@ -40,10 +40,11 @@ class MatchEntryCLI:
         else:
             print("My Team did not play. Skipping lineup.")
 
+    
+    
+
     def entry_game_details(self):
-        print(self.repo.fetch_leagues())
-        league = get_int("League ID: ")
-        
+        print("\n--- Entering Game Details ---")
         year = get_int("Year: ")
         month = get_int("Month: ")
         day = get_int("Day: ")
@@ -53,9 +54,13 @@ class MatchEntryCLI:
         minute = get_int("Minute: ")
         game_time = dt.time(hour, minute)
         
+        print(self.repo.fetch_leagues())
+        league = get_int("League ID: ")
+
+
         round_num = get_int("Round: ")
         
-        print(self.repo.fetch_teams())
+        print(self.repo.fetch_teams(league))
         home_team = get_int("Home Team ID: ")
         away_team = get_int("Away Team ID: ")
         
@@ -96,14 +101,19 @@ class MatchEntryCLI:
                 situation = GAME_SITUATIONS.get(sit_idx, "Normal")
 
                 player_id = None
-                # Only ask for player if it's My Team and NOT an own goal
-                if own_goal == 0 and team_id == MY_TEAM_ID:
+                # Only ask for player if it's NOT an own goal
+                if own_goal == 0:
                     print(self.repo.fetch_roster(team_id))
                     try:
                         player_id = get_int(f"Player ID for Team {team_id}: ")
                     except ValueError:
                         player_id = None
                 
+                    if player_id == 0:
+                       self.repo.create_new_player(team_id)
+                       player_id = self.repo.fetch_max_playerid()
+
+
                 payload = {
                     "game_id": self.current_game_id,
                     "goal_min": goal_min,
