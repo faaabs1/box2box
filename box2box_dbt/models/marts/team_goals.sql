@@ -15,7 +15,12 @@ home_stats as (
         home_team_id as team_id,
         count(game_id) as games_played_home,
         sum(home_goals) as goals_scored_home,
-        sum(away_goals) as goals_conceded_home
+        sum(away_goals) as goals_conceded_home,
+        sum(CASE 
+            WHEN home_goals > away_goals THEN 3
+            WHEN home_goals = away_goals THEN 1
+            ELSE 0 
+        END) as home_points
     from games
     group by home_team_id
 ),
@@ -26,7 +31,12 @@ away_stats as (
         away_team_id as team_id,
         count(game_id) as games_played_away,
         sum(away_goals) as goals_scored_away,
-        sum(home_goals) as goals_conceded_away
+        sum(home_goals) as goals_conceded_away,
+        sum(CASE 
+            WHEN home_goals < away_goals THEN 3
+            WHEN home_goals = away_goals THEN 1
+            ELSE 0 
+        END) as away_points
     from games
     group by away_team_id
 ),
@@ -39,15 +49,19 @@ combined as (
         
         -- Home Stats
         coalesce(h.goals_scored_home, 0) as home_goals,
+        coalesce(h.home_points,0) as home_points,
         h.games_played_home as home_games,
         
         -- Away Stats
         coalesce(a.goals_scored_away, 0) as away_goals,
+        coalesce(a.away_points,0) as away_points,
         a.games_played_away as away_games,
         
         -- Total Stats
         (coalesce(h.goals_scored_home, 0) + coalesce(a.goals_scored_away, 0)) as total_goals,
+        (coalesce(h.home_points,0) + coalesce(a.away_points,0)) as total_points,
         (coalesce(h.games_played_home, 0) + coalesce(a.games_played_away, 0)) as total_games
+        
         
     from teams t
     left join home_stats h on t.team_id = h.team_id

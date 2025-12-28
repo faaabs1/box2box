@@ -66,6 +66,9 @@ pg_stats = st.Page("player_stats.py", title="Player Stats", icon="🏃")
 pg_team = st.Page("team_stats.py",title="Team Stats")
 
 pg_game_stats = st.Page("game_stats.py",title="Game Stats")
+
+pg_calendar = st.Page("cal_view.py",title="Calendar",icon="📅")
+
 # 6. Run Navigation
-pg = st.navigation([pg_overview, pg_stats,pg_team,pg_game_stats])
+pg = st.navigation([pg_overview, pg_stats,pg_team,pg_game_stats,pg_calendar])
 pg.run()

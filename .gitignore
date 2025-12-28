@@ -2,3 +2,6 @@
 .DS_Store
 data_entry.py
 __pycache__/
+.devcontainer/
+box2box.egg-info/
+logs/
