@@ -50,16 +50,19 @@ combined as (
         -- Home Stats
         coalesce(h.goals_scored_home, 0) as home_goals,
         coalesce(h.home_points,0) as home_points,
+        coalesce(h.goals_conceded_home,0) as home_goals_conceded,
         h.games_played_home as home_games,
         
         -- Away Stats
         coalesce(a.goals_scored_away, 0) as away_goals,
         coalesce(a.away_points,0) as away_points,
+        coalesce(a.goals_conceded_away,0) as away_goals_conceded,
         a.games_played_away as away_games,
         
         -- Total Stats
         (coalesce(h.goals_scored_home, 0) + coalesce(a.goals_scored_away, 0)) as total_goals,
         (coalesce(h.home_points,0) + coalesce(a.away_points,0)) as total_points,
+        (coalesce(h.goals_conceded_home,0) + coalesce(a.goals_conceded_away,0)) as total_goals_conceded,
         (coalesce(h.games_played_home, 0) + coalesce(a.games_played_away, 0)) as total_games
         
         
