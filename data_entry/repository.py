@@ -1,5 +1,6 @@
 # repository.py
 import pandas as pd
+from config import MY_TEAM_ID
 
 class FootballRepository:
     def __init__(self, db_client):
@@ -39,6 +40,12 @@ class FootballRepository:
             return int(response.data[0]['player_id'])
         return 0
     
+    def fetch_games_myteam(self,team_id=MY_TEAM_ID):
+        response = self.sb.schema('raw').table('games').select('*').eq('home_team_id' or 'away_team_id', team_id).execute()
+        return pd.DataFrame(response.data)
+    
+    def fetch_goal_ids(self,team_id):
+    
     def get_max_game_id(self):
         response = self.sb.schema('raw').table('games') \
             .select('game_id').order('game_id', desc=True).limit(1).execute()
@@ -55,6 +62,10 @@ class FootballRepository:
         .select('player_name','minutes_total','starts_total','goals_total','position1','jersey_number')\
         .order('jersey_number',desc=False)\
         .execute()
+        return pd.DataFrame(response.data)
+    
+    def fetch_active_leauges(self):
+        response = self.sb.schema('analytics').table('active_league').select('team_name','league_id').execute()
         return pd.DataFrame(response.data)
 
     # --- SAVE METHODS ---
@@ -75,6 +86,9 @@ class FootballRepository:
     
     def save_player_contract(self, payload):
         return self.sb.schema('raw').table('player_contracts').insert(payload).execute()
+    
+    def save_xmistake(self, payload):
+        return self.sb.schema('raw').table('xmistake').insert(payload).execute()
     
 
     # --- CREATE METHODS ---

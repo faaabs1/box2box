@@ -234,3 +234,58 @@ class MatchEntryCLI:
                 }
                 self.repo.save_card(payload)
                 print("Card entry saved.")
+
+class GoalkeeperEntryCLI:
+    category = {
+        1: "No Chance",
+        2: "Difficult Save",
+        3: "Could Save",
+        4: "Should Save",
+        5: "Must Save"
+    }
+
+    error = {
+        1: "Position",
+        2: "Set Shape",
+        3: "Movement",
+        4: "Technique",
+        5: "Zonal",
+        6: "Decision"
+    }
+    
+    def __init__(self, repo):
+        self.repo = repo
+
+    def run(self):
+        print("Goalkeeper Data Entry not yet implemented.")
+
+    def entry_xmistake(self):
+        print("\n--- Entering X-Mistake Data ---")
+        # Implementation goes here
+        game_id = self.repo.fetch_games_myteam()
+
+
+        goal_id = self.repo.fetch_goal_id(game_id,)
+
+        # fetch goals and loop through them to enter x-mistake data
+        
+        print('Categories:', self.category)
+        category = self.category[get_int("Category Index: ")]
+        
+        while True:
+            error_list = []
+            print("Errors:", self.error)
+            error = self.error[get_int("Error Index: ")]
+            error_list.append(error)
+            more_errors = get_int("Add another error? (1=Yes, 0=No): ")
+            if more_errors == 0:
+                break
+        
+        payload = {
+                "goal_id": goal_id,
+                "category": category,
+                "errors": error_list
+        }
+        self.repo.save_xmistake(payload)    
+        print("X-Mistake entry saved.")
+        

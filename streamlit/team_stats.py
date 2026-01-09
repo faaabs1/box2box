@@ -32,26 +32,22 @@ def load_data():
 def league_avg(df, column):
     return df[column].mean()
 
-
-
+# 1. Load Data
 team_goals = load_data()
-
-team_goals['home_goals'] = team_goals['home_goals'].fillna(0)
-team_goals['away_goals'] = team_goals['away_goals'].fillna(0)
-team_goals['total_goals'] = team_goals['total_goals'].fillna(0)
-team_goals['home_goals_conceded'] = team_goals['home_goals_conceded'].fillna(0)
-team_goals['away_goals_conceded'] = team_goals['away_goals_conceded'].fillna(0)
+#team_goals = team_goals[team_goals['league_id'] == st.session_state.league]
+# 1. Identify all numeric columns (handles float32, int32, etc. automatically)
 
 
-# team_goals['avg_goals_game'] = team_goals.apply(lambda x: x['total_goals'] / x['total_games'] if x['total_games'] > 0 else 0, axis=1)
-# team_goals['avg_goals_home'] = team_goals.apply(lambda x: x['home_goals'] / x['home_games'] if x['home_games'] > 0 else 0, axis=1)
-# team_goals['avg_goals_away'] = team_goals.apply(lambda x: x['away_goals'] / x['away_games'] if x['away_games'] > 0 else 0, axis=1)
-# team_goals['avg_goals_conceded'] = team_goals.apply(lambda x: x['total_goals_conceded'] / x['total_games'] if x['total_games'] > 0 else 0, axis=1)
+# 2. Fill all NaN values with 0
+numeric_cols = team_goals.select_dtypes(include=['number']).columns
 
-league_avg_metrics = ['total_goals','home_goals','away_goals']
+team_goals[numeric_cols] = team_goals[numeric_cols].fillna(0)
+
+# 3. Calculate League averages and 75th percentiles
+
+league_avg_metrics = ['total_goals','home_goals','away_goals','avg_goals_game','avg_goals_conceded']
 for metric in league_avg_metrics:
     team_goals[f'league_avg_{metric}'] = league_avg(team_goals, metric)
-
 
 goals_league_conceded_avg = team_goals['total_goals_conceded'].mean()
 
@@ -59,6 +55,8 @@ goals_league_75th = percentile(team_goals['total_goals'],75)
 goals_league_75th_home = percentile(team_goals['home_goals'],75)
 goals_league_75th_away = percentile(team_goals['away_goals'],75)
 goals_league_conceded_75th = percentile(team_goals['total_goals_conceded'],75)
+avg_goals_league_75th = percentile(team_goals['avg_goals_game'],75)
+avg_goals_conceded_league_75th = percentile(team_goals['avg_goals_conceded'],75)    
 
 
 
@@ -69,28 +67,31 @@ goals_league_conceded_75th = percentile(team_goals['total_goals_conceded'],75)
 #     "Select Teams",
 #     options=team_goals['team_name'].sort_values().unique()
 # )
-
+#points_per_game = team_goals['total_points'] / team_goals['total_games']
 # Filter the dataframe
 filtered_df = team_goals[team_goals['team_name'] == st.session_state.team]
 
+filtered_df['points_per_game'] = team_goals['total_points'] / team_goals['total_games']
 
 
-league_avg_goals = filtered_df['total_goals'].sum()-goals_league_avg
+league_avg_goals = filtered_df['total_goals'].sum()-team_goals['league_avg_total_goals']
 league_avg_goals = league_avg_goals.round(2)
 
-league_avg_goals_home = filtered_df['home_goals'].sum()-goals_league_avg_home
+league_avg_goals_home = filtered_df['home_goals'].sum()-team_goals['league_avg_home_goals']
 league_avg_goals_home = league_avg_goals_home.round(2)
 
-league_avg_goals_away = filtered_df['away_goals'].sum()-goals_league_avg_away
+league_avg_goals_away = filtered_df['away_goals'].sum()-team_goals['league_avg_away_goals']
 league_avg_goals_away = league_avg_goals_away.round(2)
 
 league_75th_goals = (filtered_df['total_goals'].sum()-goals_league_75th)
 
 league_75th_goals_home = (filtered_df['home_goals'].sum()-goals_league_75th_home)
-
 league_75th_goals_away = (filtered_df['away_goals'].sum()-goals_league_75th_away)
-
 league_75th_goals_conceded = (filtered_df['total_goals_conceded'].sum()-goals_league_conceded_75th)
+
+
+league_75th_avg_goals_conceded = (filtered_df['avg_goals_conceded'].sum()-avg_goals_conceded_league_75th).round(2)
+league_75th_avg_goals = (filtered_df['avg_goals_game'].sum()-avg_goals_league_75th).round(2)
 
 
 
@@ -98,19 +99,15 @@ league_75th_goals_conceded = (filtered_df['total_goals_conceded'].sum()-goals_le
 st.title("⚽ Box2Box Analytics")
 st.markdown(f"Performance metrics for **{st.session_state.team}**")
 
-col1, col2= st.columns(2)
-col1.metric("Total Goals scored",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True)
-col2.metric("Total Goals conceded", int(filtered_df['total_goals_conceded']),f"{league_75th_goals_conceded} vs. 75th percentile",border=True)
-#col3.metric("Away Goals", int(filtered_df['away_goals']),f"{league_75th_goals_away} vs. 75th percentile",border=True)
-
-
-
-# col1, col2, col3 = st.columns(3)
-# col1.metric("Avg Goals/Game", f"{filtered_df['avg_goals_game'].mean():.2f}")
-# col2.metric("Avg Home Goals", f"{filtered_df['avg_goals_home'].mean():.2f}")
-# col3.metric("Avg Away Goals", f"{filtered_df['avg_goals_away'].mean():.2f}")
+col1, col2, col3, col4,col5 = st.columns(5)
+col1.metric("Points/Game", round(filtered_df['points_per_game'],2),border=True)
+col2.metric("Total Goals scored",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True)
+col3.metric("Goals/Game", round(filtered_df['avg_goals_game'],2),f"{league_75th_avg_goals} vs. 75th percentile",border=True)
+col4.metric("Total Goals conceded", int(filtered_df['total_goals_conceded']),f"{league_75th_goals_conceded} vs. 75th percentile",border=True,delta_color="inverse")
+col5.metric("Goals conceded/Game", round(filtered_df['avg_goals_conceded'],2),f"{league_75th_avg_goals_conceded } vs. 75th percentile",border=True,delta_color="inverse")
 
 st.divider()
 
 st.subheader("Data Table")
+st.bar_chart(team_goals, x='team_name', y=['avg_goals_game'], height=400,horizontal=True,sort="-avg_goals_game")
 st.dataframe(team_goals)
