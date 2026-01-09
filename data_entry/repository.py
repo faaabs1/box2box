@@ -41,11 +41,38 @@ class FootballRepository:
         return 0
     
     def fetch_games_myteam(self,team_id=MY_TEAM_ID):
-        response = self.sb.schema('raw').table('games').select('*').eq('home_team_id' or 'away_team_id', team_id).execute()
+        response_home = self.sb.schema('raw').table('games')\
+        .select('game_id, game_date, game_round')\
+        .eq('home_team_id', team_id)\
+        .execute()
+        df_home = pd.DataFrame(response_home.data)
+
+        # 2. Fetch Away Games
+        response_away = self.sb.schema('raw').table('games')\
+        .select('game_id, game_date, game_round')\
+        .eq('away_team_id', team_id)\
+        .execute()
+        df_away = pd.DataFrame(response_away.data)
+
+        # 3. Combine them
+        # pd.concat stacks them on top of each other
+        df_combined = pd.concat([df_home, df_away])
+
+        # 4. Sort by date (optional) and reset index
+        if not df_combined.empty:
+            df_combined = df_combined.sort_values('game_date').reset_index(drop=True)
+
+        return df_combined
+    
+    def fetch_goal_ids(self, game_id, team_id=MY_TEAM_ID):
+        response = self.sb.schema('analytics').table('team_conceded')\
+            .select('game_id', 'goal_id')\
+            .eq('team_conceded', team_id)\
+            .eq('game_id', game_id)\
+            .execute()
+        
         return pd.DataFrame(response.data)
-    
-    def fetch_goal_ids(self,team_id):
-    
+
     def get_max_game_id(self):
         response = self.sb.schema('raw').table('games') \
             .select('game_id').order('game_id', desc=True).limit(1).execute()

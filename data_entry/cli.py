@@ -257,35 +257,36 @@ class GoalkeeperEntryCLI:
         self.repo = repo
 
     def run(self):
-        print("Goalkeeper Data Entry not yet implemented.")
+        self.entry_xmistake()
 
     def entry_xmistake(self):
         print("\n--- Entering X-Mistake Data ---")
         # Implementation goes here
-        game_id = self.repo.fetch_games_myteam()
+        print(self.repo.fetch_games_myteam())
+        game_id = get_int("Game ID: ")
 
+        goals = self.repo.fetch_goal_ids(game_id)
+        goals = goals['goal_id'].tolist()
 
-        goal_id = self.repo.fetch_goal_id(game_id,)
-
-        # fetch goals and loop through them to enter x-mistake data
-        
-        print('Categories:', self.category)
-        category = self.category[get_int("Category Index: ")]
-        
-        while True:
+        for goal_id in goals:    
+            print(goal_id)
+            print('Categories:', self.category)
+            category = self.category[get_int("Category Index: ")]
             error_list = []
-            print("Errors:", self.error)
-            error = self.error[get_int("Error Index: ")]
-            error_list.append(error)
-            more_errors = get_int("Add another error? (1=Yes, 0=No): ")
-            if more_errors == 0:
-                break
-        
-        payload = {
-                "goal_id": goal_id,
-                "category": category,
-                "errors": error_list
-        }
-        self.repo.save_xmistake(payload)    
-        print("X-Mistake entry saved.")
+            if category != self.category[1]:
+                while True:
+                    print("Errors:", self.error)
+                    error = self.error[get_int("Error Index: ")]
+                    error_list.append(error)
+                    more_errors = get_int("Add another error? (1=Yes, 0=No): ")
+                    if more_errors == 0:
+                        break
+            
+            payload = {
+                    "goal_id": goal_id,
+                    "category": category,
+                    "errors": error_list
+            }
+            self.repo.save_xmistake(payload)    
+            print("X-Mistake entry saved.")
         
