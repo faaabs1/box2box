@@ -43,38 +43,6 @@ al = load_active_leagues()
 leagues = load_leagues()
 
 
-# 4. Global Sidebar (Shared across all pages)
-# with st.sidebar:
-#     st.header("Global Filters")
-    
-#     # A. Get unique leagues for the dropdown
-#     # (Assuming 'league_name' is available and better for UI than ID)
-    
-#     league_options = leagues['league_name'].sort_values().unique()
-#     league_id_map = dict(zip(leagues['league_name'], leagues['league_id']))
-
-#     # B. Create the League Selectbox
-#     # We assign the result to a variable 'selected_league_val' to use it immediately
-#     selected_league_val = st.selectbox(
-#         "Select League",
-#         options=league_options,
-#         key='league' 
-#     )
-    
-#     # C. Filter Data based on the League Selection
-#     # This now works safely because 'selected_league_val' is defined right above
-#     df_filtered = al[al['league_id'] == league_id_map[selected_league_val]]
-    
-#     # D. Get unique teams for the second dropdown
-#     team_options = df_filtered['team_name'].sort_values().unique()
-    
-#     # E. Create the Team Selectbox
-#     st.selectbox(
-#         "Select Team",
-#         options=team_options,
-#         key='team'
-#     )
-
 # 5. Define Internal Page Functions
 def team_overview():
     st.title("Performance Dashboard")
@@ -87,14 +55,14 @@ pg_overview = st.Page('team_stats.py', title="Team Overview", icon="🏠")
 pg_stats = st.Page("player_stats.py", title="Player Stats", icon="🏃")
 #pg_team = st.Page("team_stats.py", title="Team Stats")
 #pg_game_stats = st.Page("game_stats.py", title="Game Stats")
-pg_calendar = st.Page("cal_view.py", title="Calendar", icon="📅")
+#pg_calendar = st.Page("cal_view.py", title="Calendar", icon="📅")
 
 # 7. Run Navigation
-pg = st.navigation([pg_overview, pg_stats,pg_calendar])
+pg = st.navigation([pg_overview, pg_stats])
 
 # 2. Define which pages should NOT have the sidebar
 # Use the exact string titles you defined above
-PAGES_WITHOUT_SIDEBAR = [pg_calendar, pg_stats] 
+PAGES_WITHOUT_SIDEBAR = [pg_stats] 
 
 
 # 3. Conditionally Render the Sidebar
