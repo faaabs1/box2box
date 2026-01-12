@@ -1,4 +1,3 @@
-#app.py
 import sys
 import os
 from numpy import percentile
@@ -14,7 +13,7 @@ from data_entry.repository import FootballRepository
 # 1. Page Config
 st.set_page_config(page_title="Box2Box Analytics", page_icon="⚽", layout="wide")
 
-# 2. Connection Setup (Cached to prevent reconnecting on every click)
+# 2. Connection Setup
 @st.cache_resource
 def get_repo():
     try:
@@ -31,107 +30,104 @@ if not repo:
 
 # 3. Load Data
 @st.cache_data
-def load_data():
-    team_goals_df = repo.fetch_team_goals()
-    return team_goals_df
+def load_active_leagues():
+    active_leagues = repo.fetch_active_leauges()
+    return active_leagues
+def load_leagues():
+    leagues = repo.fetch_leagues()
+    return leagues
 
-team_goals = load_data()
 
 
-# 3. Define Internal Page Functions
-def team_overview():
-    st.title("Performance Dashboard")
-    st.write(f"Current Team Selection: **{st.session_state.team}**")
-
-team_selected = team_goals['team_name'].sort_values().unique()
+al = load_active_leagues()
+leagues = load_leagues()
 
 
 # 4. Global Sidebar (Shared across all pages)
-# Because this is in the main body, it runs every time, keeping the state sync'd
-with st.sidebar:
-    st.header("Global Filters")
-    st.selectbox(
-        "Select Team",
-        options=team_selected,
-        key='team'
-    )
+# with st.sidebar:
+#     st.header("Global Filters")
+    
+#     # A. Get unique leagues for the dropdown
+#     # (Assuming 'league_name' is available and better for UI than ID)
+    
+#     league_options = leagues['league_name'].sort_values().unique()
+#     league_id_map = dict(zip(leagues['league_name'], leagues['league_id']))
 
-# # 3. Load Data
-# @st.cache_data
-# def load_data():
-#     team_goals_df = repo.fetch_team_goals()
-#     return team_goals_df
+#     # B. Create the League Selectbox
+#     # We assign the result to a variable 'selected_league_val' to use it immediately
+#     selected_league_val = st.selectbox(
+#         "Select League",
+#         options=league_options,
+#         key='league' 
+#     )
+    
+#     # C. Filter Data based on the League Selection
+#     # This now works safely because 'selected_league_val' is defined right above
+#     df_filtered = al[al['league_id'] == league_id_map[selected_league_val]]
+    
+#     # D. Get unique teams for the second dropdown
+#     team_options = df_filtered['team_name'].sort_values().unique()
+    
+#     # E. Create the Team Selectbox
+#     st.selectbox(
+#         "Select Team",
+#         options=team_options,
+#         key='team'
+#     )
 
-# team_goals = load_data()
+# 5. Define Internal Page Functions
+def team_overview():
+    st.title("Performance Dashboard")
+    # Now we can safely access session state because the sidebar has run
+    if 'team' in st.session_state:
+        st.write(f"Current Team Selection: **{st.session_state.team}**")
 
-# team_goals['home_goals'] = team_goals['home_goals'].fillna(0)
-# team_goals['away_goals'] = team_goals['away_goals'].fillna(0)
-# team_goals['total_goals'] = team_goals['total_goals'].fillna(0)
-
-# team_goals['avg_goals_game'] = team_goals.apply(lambda x: x['total_goals'] / x['total_games'] if x['total_games'] > 0 else 0, axis=1)
-# team_goals['avg_goals_home'] = team_goals.apply(lambda x: x['home_goals'] / x['home_games'] if x['home_games'] > 0 else 0, axis=1)
-# team_goals['avg_goals_away'] = team_goals.apply(lambda x: x['away_goals'] / x['away_games'] if x['away_games'] > 0 else 0, axis=1)
-
-# goals_league_avg = team_goals['total_goals'].mean()
-# goals_league_avg_home = team_goals['home_goals'].mean()
-# goals_league_avg_away = team_goals['away_goals'].mean()
-
-# goals_league_75th = percentile(team_goals['total_goals'],75)
-# goals_league_75th_home = percentile(team_goals['home_goals'],75)
-# goals_league_75th_away = percentile(team_goals['away_goals'],75)
-
-
-
-
-# # Filter the dataframe
-# filtered_df = team_goals[team_goals['team_name'] == st.session_state.team]
-
-
-
-# league_avg_goals = filtered_df['total_goals'].sum()-goals_league_avg
-# league_avg_goals = league_avg_goals.round(2)
-
-# league_avg_goals_home = filtered_df['home_goals'].sum()-goals_league_avg_home
-# league_avg_goals_home = league_avg_goals_home.round(2)
-
-# league_avg_goals_away = filtered_df['away_goals'].sum()-goals_league_avg_away
-# league_avg_goals_away = league_avg_goals_away.round(2)
-
-# league_75th_goals = (filtered_df['total_goals'].sum()-goals_league_75th)
-
-# league_75th_goals_home = (filtered_df['home_goals'].sum()-goals_league_75th_home)
-
-# league_75th_goals_away = (filtered_df['away_goals'].sum()-goals_league_75th_away)
-
-# # 6. Main Dashboard
-# st.title("⚽ Box2Box Analytics")
-# st.markdown(f"Performance metrics for **{st.session_state.team}**")
-
-# col1, col2, col3 = st.columns(3)
-# col1.metric("Total Goals",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True)
-# col2.metric("Home Goals", int(filtered_df['home_goals']),f"{league_75th_goals_home} vs. 75th percentile",border=True)
-# col3.metric("Away Goals", int(filtered_df['away_goals']),f"{league_75th_goals_away} vs. 75th percentile",border=True)
-
-
-# st.divider()
-
-# st.subheader("Data Table")
-# st.dataframe(team_goals)
-
-# 5. Define Navigation
-# Page 1: The function defined above
-pg_overview = st.Page("team_stats.py", title="Team Overview", icon="🏠")
-
-# Page 2: The external file
-# Ensure 'player_stats.py' is in the same folder as this script
+# 6. Define Navigation
+pg_overview = st.Page('team_stats.py', title="Team Overview", icon="🏠")
 pg_stats = st.Page("player_stats.py", title="Player Stats", icon="🏃")
+#pg_team = st.Page("team_stats.py", title="Team Stats")
+#pg_game_stats = st.Page("game_stats.py", title="Game Stats")
+pg_calendar = st.Page("cal_view.py", title="Calendar", icon="📅")
 
-#pg_team = st.Page("team_stats.py",title="Team Stats")
+# 7. Run Navigation
+pg = st.navigation([pg_overview, pg_stats,pg_calendar])
 
-#pg_game_stats = st.Page("game_stats.py",title="Game Stats")
+# 2. Define which pages should NOT have the sidebar
+# Use the exact string titles you defined above
+PAGES_WITHOUT_SIDEBAR = [pg_calendar, pg_stats] 
 
-#pg_calendar = st.Page("cal_view.py",title="Calendar",icon="📅")
 
-# 6. Run Navigation
-pg = st.navigation([pg_overview, pg_stats])
+# 3. Conditionally Render the Sidebar
+# 'pg.title' gives us the title of the currently active page
+if pg not in PAGES_WITHOUT_SIDEBAR:
+    with st.sidebar:
+        st.header("Global Filters")
+        
+        # A. Get unique leagues for the dropdown
+        # (Assuming 'league_name' is available and better for UI than ID)
+        
+        league_options = leagues['league_name'].sort_values().unique()
+        league_id_map = dict(zip(leagues['league_name'], leagues['league_id']))
+
+        # B. Create the League Selectbox
+        # We assign the result to a variable 'selected_league_val' to use it immediately
+        selected_league_val = st.selectbox(
+            "Select League",
+            options=league_options,
+            key='league' 
+        )
+        
+        # C. Filter Data based on the League Selection
+        # This now works safely because 'selected_league_val' is defined right above
+        df_filtered = al[al['league_id'] == league_id_map[selected_league_val]]
+        
+        # D. Get unique teams for the second dropdown
+        team_options = df_filtered['team_name'].sort_values().unique()
+        
+        # E. Create the Team Selectbox
+        st.selectbox(
+            "Select Team",
+            options=team_options,
+            key='team'
+        )
 pg.run()

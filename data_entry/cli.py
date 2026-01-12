@@ -40,10 +40,11 @@ class MatchEntryCLI:
         else:
             print("My Team did not play. Skipping lineup.")
 
+    
+    
+
     def entry_game_details(self):
-        print(self.repo.fetch_leagues())
-        league = get_int("League ID: ")
-        
+        print("\n--- Entering Game Details ---")
         year = get_int("Year: ")
         month = get_int("Month: ")
         day = get_int("Day: ")
@@ -53,9 +54,13 @@ class MatchEntryCLI:
         minute = get_int("Minute: ")
         game_time = dt.time(hour, minute)
         
+        print(self.repo.fetch_leagues())
+        league = get_int("League ID: ")
+
+
         round_num = get_int("Round: ")
         
-        print(self.repo.fetch_teams())
+        print(self.repo.fetch_teams(league))
         home_team = get_int("Home Team ID: ")
         away_team = get_int("Away Team ID: ")
         
@@ -96,14 +101,19 @@ class MatchEntryCLI:
                 situation = GAME_SITUATIONS.get(sit_idx, "Normal")
 
                 player_id = None
-                # Only ask for player if it's My Team and NOT an own goal
-                if own_goal == 0 and team_id == MY_TEAM_ID:
+                # Only ask for player if it's NOT an own goal
+                if own_goal == 0:
                     print(self.repo.fetch_roster(team_id))
                     try:
                         player_id = get_int(f"Player ID for Team {team_id}: ")
                     except ValueError:
                         player_id = None
                 
+                    if player_id == 0:
+                       self.repo.create_new_player(team_id)
+                       player_id = self.repo.fetch_max_playerid()
+
+
                 payload = {
                     "game_id": self.current_game_id,
                     "goal_min": goal_min,
@@ -224,3 +234,59 @@ class MatchEntryCLI:
                 }
                 self.repo.save_card(payload)
                 print("Card entry saved.")
+
+class GoalkeeperEntryCLI:
+    category = {
+        1: "No Chance",
+        2: "Difficult Save",
+        3: "Could Save",
+        4: "Should Save",
+        5: "Must Save"
+    }
+
+    error = {
+        1: "Position",
+        2: "Set Shape",
+        3: "Movement",
+        4: "Technique",
+        5: "Zonal",
+        6: "Decision"
+    }
+    
+    def __init__(self, repo):
+        self.repo = repo
+
+    def run(self):
+        self.entry_xmistake()
+
+    def entry_xmistake(self):
+        print("\n--- Entering X-Mistake Data ---")
+        # Implementation goes here
+        print(self.repo.fetch_games_myteam())
+        game_id = get_int("Game ID: ")
+
+        goals = self.repo.fetch_goal_ids(game_id)
+        goals = goals['goal_id'].tolist()
+
+        for goal_id in goals:    
+            print(goal_id)
+            print('Categories:', self.category)
+            category = self.category[get_int("Category Index: ")]
+            error_list = []
+            if category != self.category[1]:
+                while True:
+                    print("Errors:", self.error)
+                    error = self.error[get_int("Error Index: ")]
+                    error_list.append(error)
+                    more_errors = get_int("Add another error? (1=Yes, 0=No): ")
+                    if more_errors == 0:
+                        break
+            
+            payload = {
+                    "goal_id": goal_id,
+                    "category": category,
+                    "errors": error_list
+            }
+            self.repo.save_xmistake(payload)    
+            print("X-Mistake entry saved.")
+        
