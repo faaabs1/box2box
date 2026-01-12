@@ -1,6 +1,7 @@
 #app.py
 import sys
 import os
+from numpy import percentile
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir) 
@@ -55,20 +56,82 @@ with st.sidebar:
         key='team'
     )
 
+# # 3. Load Data
+# @st.cache_data
+# def load_data():
+#     team_goals_df = repo.fetch_team_goals()
+#     return team_goals_df
+
+# team_goals = load_data()
+
+# team_goals['home_goals'] = team_goals['home_goals'].fillna(0)
+# team_goals['away_goals'] = team_goals['away_goals'].fillna(0)
+# team_goals['total_goals'] = team_goals['total_goals'].fillna(0)
+
+# team_goals['avg_goals_game'] = team_goals.apply(lambda x: x['total_goals'] / x['total_games'] if x['total_games'] > 0 else 0, axis=1)
+# team_goals['avg_goals_home'] = team_goals.apply(lambda x: x['home_goals'] / x['home_games'] if x['home_games'] > 0 else 0, axis=1)
+# team_goals['avg_goals_away'] = team_goals.apply(lambda x: x['away_goals'] / x['away_games'] if x['away_games'] > 0 else 0, axis=1)
+
+# goals_league_avg = team_goals['total_goals'].mean()
+# goals_league_avg_home = team_goals['home_goals'].mean()
+# goals_league_avg_away = team_goals['away_goals'].mean()
+
+# goals_league_75th = percentile(team_goals['total_goals'],75)
+# goals_league_75th_home = percentile(team_goals['home_goals'],75)
+# goals_league_75th_away = percentile(team_goals['away_goals'],75)
+
+
+
+
+# # Filter the dataframe
+# filtered_df = team_goals[team_goals['team_name'] == st.session_state.team]
+
+
+
+# league_avg_goals = filtered_df['total_goals'].sum()-goals_league_avg
+# league_avg_goals = league_avg_goals.round(2)
+
+# league_avg_goals_home = filtered_df['home_goals'].sum()-goals_league_avg_home
+# league_avg_goals_home = league_avg_goals_home.round(2)
+
+# league_avg_goals_away = filtered_df['away_goals'].sum()-goals_league_avg_away
+# league_avg_goals_away = league_avg_goals_away.round(2)
+
+# league_75th_goals = (filtered_df['total_goals'].sum()-goals_league_75th)
+
+# league_75th_goals_home = (filtered_df['home_goals'].sum()-goals_league_75th_home)
+
+# league_75th_goals_away = (filtered_df['away_goals'].sum()-goals_league_75th_away)
+
+# # 6. Main Dashboard
+# st.title("⚽ Box2Box Analytics")
+# st.markdown(f"Performance metrics for **{st.session_state.team}**")
+
+# col1, col2, col3 = st.columns(3)
+# col1.metric("Total Goals",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True)
+# col2.metric("Home Goals", int(filtered_df['home_goals']),f"{league_75th_goals_home} vs. 75th percentile",border=True)
+# col3.metric("Away Goals", int(filtered_df['away_goals']),f"{league_75th_goals_away} vs. 75th percentile",border=True)
+
+
+# st.divider()
+
+# st.subheader("Data Table")
+# st.dataframe(team_goals)
+
 # 5. Define Navigation
 # Page 1: The function defined above
-pg_overview = st.Page(team_overview, title="Team Overview", icon="🏠")
+pg_overview = st.Page("team_stats.py", title="Team Overview", icon="🏠")
 
 # Page 2: The external file
 # Ensure 'player_stats.py' is in the same folder as this script
 pg_stats = st.Page("player_stats.py", title="Player Stats", icon="🏃")
 
-pg_team = st.Page("team_stats.py",title="Team Stats")
+#pg_team = st.Page("team_stats.py",title="Team Stats")
 
-pg_game_stats = st.Page("game_stats.py",title="Game Stats")
+#pg_game_stats = st.Page("game_stats.py",title="Game Stats")
 
-pg_calendar = st.Page("cal_view.py",title="Calendar",icon="📅")
+#pg_calendar = st.Page("cal_view.py",title="Calendar",icon="📅")
 
 # 6. Run Navigation
-pg = st.navigation([pg_overview, pg_stats,pg_team,pg_game_stats,pg_calendar])
+pg = st.navigation([pg_overview, pg_stats])
 pg.run()
