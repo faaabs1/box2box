@@ -82,23 +82,23 @@ def team_overview():
         st.write(f"Current Team Selection: **{st.session_state.team}**")
 
 # 6. Define Navigation
-pg_overview = st.Page(team_overview, title="Team Overview", icon="🏠")
+pg_overview = st.Page('team_stats.py', title="Team Overview", icon="🏠")
 pg_stats = st.Page("player_stats.py", title="Player Stats", icon="🏃")
-pg_team = st.Page("team_stats.py", title="Team Stats")
-pg_game_stats = st.Page("game_stats.py", title="Game Stats")
+#pg_team = st.Page("team_stats.py", title="Team Stats")
+#pg_game_stats = st.Page("game_stats.py", title="Game Stats")
 pg_calendar = st.Page("cal_view.py", title="Calendar", icon="📅")
 
 # 7. Run Navigation
-pg = st.navigation([pg_overview, pg_stats, pg_team, pg_game_stats, pg_calendar])
+pg = st.navigation([pg_overview, pg_stats,pg_calendar])
 
 # 2. Define which pages should NOT have the sidebar
 # Use the exact string titles you defined above
-PAGES_WITHOUT_SIDEBAR = ["Calendar", "Player Stats"] 
+PAGES_WITHOUT_SIDEBAR = [pg_calendar, pg_stats] 
 
 
 # 3. Conditionally Render the Sidebar
 # 'pg.title' gives us the title of the currently active page
-if pg.title not in PAGES_WITHOUT_SIDEBAR:
+if pg not in PAGES_WITHOUT_SIDEBAR:
     with st.sidebar:
         st.header("Global Filters")
         
