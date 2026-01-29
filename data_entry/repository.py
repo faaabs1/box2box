@@ -126,8 +126,14 @@ class FootballRepository:
        
        #player_contract 
         valid_from = input("Contract Valid From (YYYY-MM-DD): ")
-
-        # Prepare Payload
+        current_club = int(input("Current Club: "))
+        
+        if current_club == 0:
+            valid_to = input("Contract Valid From (YYYY-MM-DD): ")
+            # Prepare Payload
+        else:
+            valid_to = "9999-12-31"
+    
         payload_player = {
             "firstname": firstname,
             "lastname": lastname
@@ -138,6 +144,7 @@ class FootballRepository:
         payload_contract = {
             "player_id": self.fetch_max_playerid(),
             "team_id": team_id,
-            "valid_from": valid_from
+            "valid_from": valid_from,
+            "valid_to": valid_to,
         }
         self.save_player_contract(payload_contract)

@@ -30,7 +30,7 @@ class MatchEntryCLI:
         self.entry_goals()
 
         # 4. Cards
-        self.entry_cards() # Uncomment when ready
+        #self.entry_cards() # Uncomment when ready
 
         # 4. Check if My Team played
         if MY_TEAM_ID in self.teams_involved:
