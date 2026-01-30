@@ -11,3 +11,5 @@ sources:
       - name: leagues
       - name: lineups
       - name: players
+      - name: seasons
+      - name: cards
