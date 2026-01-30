@@ -1,11 +1,11 @@
 select 
-    goal_id,
-    game_id,
-    goal_min,
-    player_id,
-    game_situation,
-    own_goal,
-    goal_for as goal_for_team_id,
+    g.goal_id,
+    g.game_id,
+    g.goal_min,
+    g.player_id,
+    g.game_situation,
+    g.own_goal,
+    g.goal_for as goal_for_team_id,
 
     -- 2. Time Buckets (15-min intervals)
     CASE 
@@ -25,7 +25,7 @@ select
 
     --4. Goal Location (Home/Away)
     CASE 
-        when g.team_id = ga.home_team_id THEN 'home'
+        when g.goal_for = ga.home_team_id THEN 'home'
         else 'away'
     END AS goal_location,
 
