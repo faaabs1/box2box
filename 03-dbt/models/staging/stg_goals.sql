@@ -21,19 +21,6 @@ select
     CASE 
         WHEN goal_min <= 45 THEN 'First Half'
         ELSE 'Second Half'
-    END AS goal_half,
+    END AS goal_half
 
-    --4. Goal Location (Home/Away)
-    CASE 
-        when g.goal_for = ga.home_team_id THEN 'home'
-        else 'away'
-    END AS goal_location,
-
-    --5. Opponent Team ID
-    CASE 
-        when g.goal_for = ga.home_team_id then ga.away_team_id
-        else ga.home_team_id
-    end as goal_against_team_id
-
-from {{source('box2box_raw', 'goals')}} g 
-join {{source('box2box_raw', 'games')}} ga on g.game_id = ga.game_id
+from {{source('box2box_raw', 'goals')}} g

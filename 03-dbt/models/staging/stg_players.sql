@@ -8,4 +8,4 @@ select
         jersey_number,
         dob,
         team_id
-    from {{ ref('snp_players') }}
+from {{ ref('snp_players') }}
