@@ -7,7 +7,6 @@ select
     li.sub_out,
     li.started,
     li.team_id,
-    ga.season_id,
 
     case
         when li.team_id = ga.home_team_id then 'home'

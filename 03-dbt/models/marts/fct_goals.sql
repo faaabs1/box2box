@@ -6,7 +6,6 @@ select
     g.game_situation,
     g.own_goal,
     g.goal_for_team_id,
-    ga.season_id,
 
     --4. Goal Location (Home/Away)
     CASE 

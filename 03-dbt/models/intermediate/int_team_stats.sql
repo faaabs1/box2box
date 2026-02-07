@@ -4,7 +4,7 @@ with base as (
         game_date,
         game_round, -- Keep the round here!
         home_team_id as team_id,
-        'home' as location,
+        'home' as game_location,
         league_id,
         home_goals as goals_scored,
         away_goals as goals_conceded,
@@ -20,7 +20,7 @@ with base as (
         game_date,
         game_round,
         away_team_id as team_id,
-        'away' as location,
+        'away' as gaem_location,
         league_id,
         away_goals as goals_scored,
         home_goals as goals_conceded,
