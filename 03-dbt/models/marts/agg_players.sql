@@ -16,15 +16,17 @@ player_lineups as (
         count(game_id) as games_played,
         sum(min_played) as total_minutes_played,
         sum(case when started then 1 else 0 end) as games_started,
-        sum(case when sub_in is not null then 1 else 0 end) as count_sub_ins,
-        sum(case when sub_out is not null then 1 else 0 end) as count_sub_outs
+        sum(case when sub_in is TRUE then 1 else 0 end) as count_sub_ins,
+        sum(case when sub_out is TRUE then 1 else 0 end) as count_sub_outs
     from {{ ref('fct_lineups') }}
     group by 1, 2, 3
 )
 
 select
     li.*,
-    coalesce(pg.total_goals_scored, 0) as total_goals_scored
+    coalesce(pg.total_goals_scored, 0) as total_goals_scored,
+    -- li.total_minutes_played/nullif(li.games_played, 0) as avg_minutes_per_game,
+    -- pg.total_goals_scored/nullif(li.games_played, 0) as avg_goals_per_game
 from player_lineups li
 left join player_goals pg 
     on li.player_id = pg.player_id 

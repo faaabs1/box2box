@@ -12,7 +12,7 @@ select
     CASE 
         when g.goal_for_team_id = ga.home_team_id THEN 'home'
         else 'away'
-    END AS goal_location,
+    END AS game_location,
 
     --5. Opponent Team ID
     CASE 

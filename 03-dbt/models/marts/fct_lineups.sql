@@ -21,3 +21,4 @@ select
 
 
 from {{ref('stg_lineups')}} li
+join {{ref('fct_games')}} ga on li.game_id = ga.game_id

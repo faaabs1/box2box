@@ -1,6 +1,5 @@
 select 
     g.*,
-    s.season_id,
     t.league_id as home_team_league_id,
     t2.league_id as away_team_league_id
 from {{ ref('stg_games')}} g
