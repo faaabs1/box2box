@@ -6,5 +6,9 @@ select
     li.sub_in,
     li.sub_out,
     li.started,
-    li.team_id
+    li.team_id,
+    g.season_id,
+    g.game_location
 from {{source('box2box_raw', 'lineups')}} li
+join {{ ref('stg_games') }} g
+    on li.game_id = g.game_id
