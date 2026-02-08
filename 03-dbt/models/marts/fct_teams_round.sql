@@ -38,7 +38,10 @@ calculated_stats as (
 )
 
 select
-    *,
+    team_id,
+    season_id,
+    game_round,
+    game_location,
     -- Now cumulative values work for all three categories independently!
     sum(points) over (
         partition by team_id, season_id, game_location 
@@ -48,12 +51,37 @@ select
     sum(games_played) over (
         partition by team_id, season_id, game_location
         order by game_round
-    ) as total_games_played,#
+    ) as total_games_played,
 
-    sum(games_played) over (
+    sum(gd) over (
         partition by team_id, season_id, game_location
         order by game_round
-    ) as total_games_played
+    ) as total_gd,
+
+    sum(goals_scored) over (
+        partition by team_id, season_id, game_location
+        order by game_round
+    ) as total_goals_scored,
+
+    sum(goals_conceded) over (
+        partition by team_id, season_id, game_location
+        order by game_round
+    ) as total_goals_conceded,
+
+    sum(points_allowed) over (
+        partition by team_id, season_id, game_location
+        order by game_round
+    ) as total_points_allowed,
+
+
+
+
+    -- 3. Calculate form metrics (last 5 games)
+    sum(points) over (
+        partition by team_id, season_id, game_location
+        order by game_round
+        rows between 4 preceding and current row
+    ) as form_points_last_5
 
 
 from calculated_stats

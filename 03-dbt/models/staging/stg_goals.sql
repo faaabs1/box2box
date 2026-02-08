@@ -1,6 +1,7 @@
 select 
     g.goal_id,
     g.game_id,
+    gms.season_id,
     g.goal_min,
     g.player_id,
     g.game_situation,
@@ -24,3 +25,5 @@ select
     END AS goal_half
 
 from {{source('box2box_raw', 'goals')}} g
+join {{ ref('stg_games') }} gms
+    on g.game_id = gms.game_id

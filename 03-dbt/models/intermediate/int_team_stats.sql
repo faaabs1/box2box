@@ -1,6 +1,7 @@
 with base as (
     select
         game_id,
+        season_id,
         game_date,
         game_round, -- Keep the round here!
         home_team_id as team_id,
@@ -17,6 +18,7 @@ with base as (
     
     select
         game_id,
+        season_id,
         game_date,
         game_round,
         away_team_id as team_id,
@@ -30,8 +32,5 @@ with base as (
     from {{ ref('stg_games') }}
 )
 select 
-    b.*,
-    s.season_id 
+    b.*
 from base b
-join {{ ref('stg_seasons')}} s 
-    on b.game_date <= s.valid_to and b.game_date >= s.valid_from
