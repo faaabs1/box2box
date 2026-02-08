@@ -1,5 +1,6 @@
 select
     team_id,
+    league_id,
     game_location,
     sum(goals_scored) as total_goals_scored,
     sum(goals_conceded) as total_goals_conceded,
@@ -8,4 +9,4 @@ select
     sum(points_allowed) as total_points_allowed,
     season_id
 from {{ref('int_team_stats')}}
-group by team_id, game_location,season_id
+group by team_id, game_location,season_id, league_id

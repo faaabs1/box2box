@@ -22,7 +22,7 @@ with base as (
         game_date,
         game_round,
         away_team_id as team_id,
-        'away' as gaem_location,
+        'away' as game_location,
         league_id,
         away_goals as goals_scored,
         home_goals as goals_conceded,
