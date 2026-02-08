@@ -1,14 +1,8 @@
-import sys
-import os
-from numpy import percentile
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir) 
-sys.path.append(parent_dir)
-
 import streamlit as st
-from db_conn.database import DatabaseClient
-from data_entry.repository import FootballRepository
+
+from a_db_conn.database import DatabaseClient
+#from b_data_entry_program.repository import FootballRepository
+from d_front_end.data_loader import DataLoader
 
 # 1. Page Config
 st.set_page_config(page_title="Box2Box Analytics", page_icon="⚽", layout="wide")
@@ -18,7 +12,7 @@ st.set_page_config(page_title="Box2Box Analytics", page_icon="⚽", layout="wide
 def get_repo():
     try:
         db = DatabaseClient()
-        return FootballRepository(db.get_client())
+        return DataLoader(db.get_client())
     except Exception as e:
         st.error(f"Could not connect to database: {e}")
         return None
@@ -30,17 +24,19 @@ if not repo:
 
 # 3. Load Data
 @st.cache_data
-def load_active_leagues():
-    active_leagues = repo.fetch_active_leauges()
+def fetch_leagues():
+    active_leagues = repo.fetch_leagues()
     return active_leagues
-def load_leagues():
-    leagues = repo.fetch_leagues()
-    return leagues
+def fetch_seasons():
+    seasons = repo.fetch_seasons()
+    return seasons
 
+league = fetch_leagues()
+season = fetch_seasons()
 
-
-al = load_active_leagues()
-leagues = load_leagues()
+def fetch_teams(league_id):
+    teams = repo.fetch_teams(league_id)
+    return teams
 
 
 # 5. Define Internal Page Functions
@@ -70,12 +66,13 @@ PAGES_WITHOUT_SIDEBAR = [pg_stats]
 if pg not in PAGES_WITHOUT_SIDEBAR:
     with st.sidebar:
         st.header("Global Filters")
+    
+        league_options = league['league_name'].sort_values().unique()
+        league_id_map = dict(zip(league['league_name'], league['league_id']))
         
-        # A. Get unique leagues for the dropdown
-        # (Assuming 'league_name' is available and better for UI than ID)
-        
-        league_options = leagues['league_name'].sort_values().unique()
-        league_id_map = dict(zip(leagues['league_name'], leagues['league_id']))
+
+        season_options = season['season_name'].sort_values().unique()
+        season_id_map = dict(zip(season['season_name'], season['season_id']))
 
         # B. Create the League Selectbox
         # We assign the result to a variable 'selected_league_val' to use it immediately
@@ -84,10 +81,18 @@ if pg not in PAGES_WITHOUT_SIDEBAR:
             options=league_options,
             key='league' 
         )
-        
+        # Store the ID in session state
+        st.session_state['selected_league_id'] = league_id_map[selected_league_val]
+        selected_season_val = st.selectbox(
+            "Select Season",
+            options=season_options,
+            key='season' 
+        )
+        # Store the ID in session state
+        st.session_state['selected_season_id'] = season_id_map[selected_season_val]
         # C. Filter Data based on the League Selection
         # This now works safely because 'selected_league_val' is defined right above
-        df_filtered = al[al['league_id'] == league_id_map[selected_league_val]]
+        df_filtered = fetch_teams(league_id_map[selected_league_val])
         
         # D. Get unique teams for the second dropdown
         team_options = df_filtered['team_name'].sort_values().unique()
@@ -98,4 +103,6 @@ if pg not in PAGES_WITHOUT_SIDEBAR:
             options=team_options,
             key='team'
         )
+        # Store the ID in session state
+        st.session_state['selected_team_id'] = df_filtered[df_filtered['team_name'] == st.session_state.team]['team_id'].iloc[0]
 pg.run()

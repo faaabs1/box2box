@@ -1,6 +1,6 @@
 # cli.py
 import datetime as dt
-from config import MY_TEAM_ID, GAME_SITUATIONS, CARD_REASONS
+from data_entry.config import MY_TEAM_ID, GAME_SITUATIONS, CARD_REASONS
 
 # Helper function can live here or in a utils.py
 def get_int(prompt):
