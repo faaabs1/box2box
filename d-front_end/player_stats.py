@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from db_conn.database import DatabaseClient
-from data_entry.repository import FootballRepository
+from a_db_conn.database import DatabaseClient
+from b_data_entry_program.repository import FootballRepository
 from numpy import percentile
 
 # Page Configuration

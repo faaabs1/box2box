@@ -1,6 +1,6 @@
 # repository.py
 import pandas as pd
-from data_entry.config import MY_TEAM_ID
+from b_data_entry_program.config import MY_TEAM_ID
 
 class FootballRepository:
     def __init__(self, db_client):

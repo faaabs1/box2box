@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-from db_conn.database import DatabaseClient
-from data_entry.repository import FootballRepository
+from a_db_conn.database import DatabaseClient
+from b_data_entry_program.repository import FootballRepository
 from numpy import percentile
 
 # 1. Page Config
@@ -99,15 +99,17 @@ league_75th_avg_goals = (filtered_df['avg_goals_game'].sum()-avg_goals_league_75
 st.title("⚽ Box2Box Analytics")
 st.markdown(f"Performance metrics for **{st.session_state.team}**")
 
-col1, col2, col3, col4,col5 = st.columns(5)
-col1.metric("Points/Game", round(filtered_df['points_per_game'],2),border=True)
-col2.metric("Total Goals scored",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True)
-col3.metric("Goals/Game", round(filtered_df['avg_goals_game'],2),f"{league_75th_avg_goals} vs. 75th percentile",border=True)
-col4.metric("Total Goals conceded", int(filtered_df['total_goals_conceded']),f"{league_75th_goals_conceded} vs. 75th percentile",border=True,delta_color="inverse")
-col5.metric("Goals conceded/Game", round(filtered_df['avg_goals_conceded'],2),f"{league_75th_avg_goals_conceded } vs. 75th percentile",border=True,delta_color="inverse")
+col1, col2, col3 = st.columns(3)
+col1.metric("Points/Game", round(filtered_df['points_per_game'],2),border=True,height='stretch',width='stretch')
+col2.metric("Total Goals scored",int(filtered_df['total_goals']),f"{league_75th_goals} vs. 75th percentile",border=True,height='stretch',width='stretch')
+col3.metric("Goals/Game", round(filtered_df['avg_goals_game'],2),f"{league_75th_avg_goals} vs. 75th percentile",border=True,height='stretch',width='stretch')
 
-st.divider()
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Goals conceded", int(filtered_df['total_goals_conceded']),f"{league_75th_goals_conceded} vs. 75th percentile",border=True,delta_color="inverse")
+col2.metric("Goals conceded/Game", round(filtered_df['avg_goals_conceded'],2),f"{league_75th_avg_goals_conceded } vs. 75th percentile",border=True,delta_color="inverse")
+col3.metric("Goals conceded/Game", round(filtered_df['avg_goals_conceded'],2),f"{league_75th_avg_goals_conceded } vs. 75th percentile",border=True,delta_color="inverse")
 
-st.subheader("Data Table")
-st.bar_chart(team_goals, x='team_name', y=['avg_goals_game'], height=400,horizontal=True,sort="-avg_goals_game")
-st.dataframe(team_goals)
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Goals conceded", int(filtered_df['total_goals_conceded']),f"{league_75th_goals_conceded} vs. 75th percentile",border=True,delta_color="inverse")
+col2.metric("Goals conceded/Game", round(filtered_df['avg_goals_conceded'],2),f"{league_75th_avg_goals_conceded } vs. 75th percentile",border=True,delta_color="inverse")
+col3.metric("Goals conceded/Game", round(filtered_df['avg_goals_conceded'],2),f"{league_75th_avg_goals_conceded } vs. 75th percentile",border=True,delta_color="inverse")
