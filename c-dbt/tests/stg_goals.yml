@@ -1,0 +1,6 @@
+tests:
+  - name: goals_own_goal_validation
+    description: "Own goals must have null player_id"
+    sql: |
+      select * from {{ ref('stg_goals') }}
+      where own_goal = 1 and player_id is not null

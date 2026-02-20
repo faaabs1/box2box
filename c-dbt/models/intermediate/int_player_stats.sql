@@ -1,24 +1,13 @@
-with base as (
+with goals_by_player as (
     select
         player_id,
         season_id,
-        'home' as game_location,
-        1 as goals_scored
+        count(*) as goals_scored
     from {{ ref('stg_goals') }}
-    
-    union all
-    
-    select
-        player_id,
-        season_id,
-        'away' as game_location,
-        1 as goals_scored
-    from {{ ref('stg_goals') }}
+    group by player_id, season_id
 )
 select 
     player_id,
     season_id,
-    game_location,
-    sum(goals_scored) as goals_scored
-from base
-group by player_id, game_location, season_id
+    goals_scored
+from goals_by_player

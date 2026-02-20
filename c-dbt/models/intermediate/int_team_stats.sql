@@ -3,7 +3,7 @@ with base as (
         game_id,
         season_id,
         game_date,
-        game_round, -- Keep the round here!
+        game_round,
         home_team_id as team_id,
         'home' as game_location,
         league_id,
@@ -11,7 +11,8 @@ with base as (
         away_goals as goals_conceded,
         home_gd as goal_difference,
         home_points as points,
-        away_points as points_allowed
+        away_points as points_allowed,
+        away_team_id as opponent_team_id  -- ADD THIS
     from {{ ref('stg_games') }}
     
     union all
@@ -28,7 +29,8 @@ with base as (
         home_goals as goals_conceded,
         away_gd as goal_difference,
         away_points as points,
-        home_points as points_allowed
+        home_points as points_allowed,
+        home_team_id as opponent_team_id  -- ADD THIS
     from {{ ref('stg_games') }}
 )
 select 
