@@ -70,56 +70,14 @@ async function fetchLeagueTable(leagueId, seasonId) {
 
 async function fetchTeamGames(teamId, seasonId, leagueId) {
   const sb = getClient();
-
-  // Fetch home and away games from raw schema (confirmed available)
-  const [homeRes, awayRes] = await Promise.all([
-    sb.schema('raw').from('games').select('game_id, game_date, game_round, home_team_id, away_team_id, home_goals, away_goals').eq('home_team_id', teamId),
-    sb.schema('raw').from('games').select('game_id, game_date, game_round, home_team_id, away_team_id, home_goals, away_goals').eq('away_team_id', teamId),
-  ]);
-  if (homeRes.error) throw homeRes.error;
-  if (awayRes.error) throw awayRes.error;
-
-  const allTeams = await fetchTeams(null);
-  const teamMap = Object.fromEntries(allTeams.map(t => [t.team_id, t]));
-
-  // Season date filtering
-  let seasonRange = null;
-  if (seasonId) {
-    const { data: seasons } = await sb.schema('raw').from('seasons').select('season_id, valid_from, valid_to').eq('season_id', seasonId);
-    if (seasons && seasons.length) seasonRange = seasons[0];
-  }
-
-  const normalize = (row, isHome) => {
-    const gs = isHome ? row.home_goals : row.away_goals;
-    const gc = isHome ? row.away_goals : row.home_goals;
-    const gd = gs - gc;
-    const points = gs > gc ? 3 : gs === gc ? 1 : 0;
-    const opponentId = isHome ? row.away_team_id : row.home_team_id;
-    return {
-      game_id: row.game_id,
-      game_date: row.game_date,
-      game_round: row.game_round,
-      game_location: isHome ? 'home' : 'away',
-      goals_scored: gs,
-      goals_conceded: gc,
-      goal_difference: gd,
-      points,
-      result: points === 3 ? 'W' : points === 1 ? 'D' : 'L',
-      opponent_team_id: opponentId,
-      opponent_name: teamMap[opponentId]?.team_name || `Team ${opponentId}`,
-    };
-  };
-
-  let games = [
-    ...homeRes.data.map(r => normalize(r, true)),
-    ...awayRes.data.map(r => normalize(r, false)),
-  ];
-
-  if (seasonRange) {
-    games = games.filter(g => g.game_date >= seasonRange.valid_from && g.game_date <= seasonRange.valid_to);
-  }
-
-  return games.sort((a, b) => (b.game_date || '').localeCompare(a.game_date || ''));
+  let query = sb.schema(SCHEMA).from('fct_team_games')
+    .select('game_id, game_date, game_round, game_location, goals_scored, goals_conceded, goal_difference, points, result, opponent_team_id, opponent_name')
+    .eq('team_id', teamId);
+  if (seasonId) query = query.eq('season_id', seasonId);
+  if (leagueId) query = query.eq('league_id', leagueId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).sort((a, b) => (b.game_date || '').localeCompare(a.game_date || ''));
 }
 
 async function fetchTeamSeasonStats(teamId, seasonId, leagueId) {
@@ -146,58 +104,24 @@ async function fetchTeamSeasonStats(teamId, seasonId, leagueId) {
 async function fetchPlayers(teamId, seasonId) {
   const sb = getClient();
 
-  // Use raw.players directly (confirmed columns: player_id, firstname, lastname,
-  // position1, position2, strong_foot, jersey_number, dob, team_id)
-  let playerQuery = sb.schema('raw').from('players')
+  let statsQuery = sb.schema(SCHEMA).from('fct_player_stats')
+    .select('player_id, team_id, season_id, minutes_total, starts_total, subs_in_total, apps_total, goals_total');
+  if (teamId) statsQuery = statsQuery.eq('team_id', parseInt(teamId, 10));
+  if (seasonId) statsQuery = statsQuery.eq('season_id', seasonId);
+
+  let playersQuery = sb.schema(SCHEMA).from('dim_players')
     .select('player_id, firstname, lastname, position1, position2, strong_foot, jersey_number, dob, team_id')
     .order('jersey_number');
-  if (teamId) playerQuery = playerQuery.eq('team_id', parseInt(teamId, 10));
-  const { data: rawPlayers, error: rError } = await playerQuery;
-  if (rError) throw rError;
-  if (!rawPlayers.length) return [];
+  if (teamId) playersQuery = playersQuery.eq('team_id', parseInt(teamId, 10));
 
-  const playerIds = rawPlayers.map(p => p.player_id);
+  const [statsRes, playersRes] = await Promise.all([statsQuery, playersQuery]);
+  if (statsRes.error) throw statsRes.error;
+  if (playersRes.error) throw playersRes.error;
 
-  // Determine game IDs to scope stats to a season
-  let gameIds = null;
-  if (seasonId) {
-    const { data: seasons } = await sb.schema('raw').from('seasons')
-      .select('valid_from, valid_to').eq('season_id', seasonId);
-    if (seasons && seasons.length) {
-      const { valid_from, valid_to } = seasons[0];
-      if (teamId) {
-        const [hRes, aRes] = await Promise.all([
-          sb.schema('raw').from('games').select('game_id').eq('home_team_id', parseInt(teamId, 10)).gte('game_date', valid_from).lte('game_date', valid_to),
-          sb.schema('raw').from('games').select('game_id').eq('away_team_id', parseInt(teamId, 10)).gte('game_date', valid_from).lte('game_date', valid_to),
-        ]);
-        gameIds = [...(hRes.data || []), ...(aRes.data || [])].map(g => g.game_id);
-      }
-    }
-  }
+  const statsMap = Object.fromEntries((statsRes.data || []).map(s => [s.player_id, s]));
 
-  // Lineups + goals for aggregation
-  let lineupsQ = sb.schema('raw').from('lineups')
-    .select('player_id, started, min_played, sub_in').in('player_id', playerIds);
-  if (gameIds) lineupsQ = lineupsQ.in('game_id', gameIds);
-
-  let goalsQ = sb.schema('raw').from('goals')
-    .select('player_id').in('player_id', playerIds);
-  if (gameIds) goalsQ = goalsQ.in('game_id', gameIds);
-
-  const [lineupsRes, goalsRes] = await Promise.all([lineupsQ, goalsQ]);
-
-  const statsByPlayer = {};
-  for (const l of lineupsRes.data || []) {
-    if (!statsByPlayer[l.player_id]) statsByPlayer[l.player_id] = { starts: 0, minutes: 0, subs_in: 0 };
-    if (l.started) statsByPlayer[l.player_id].starts++;
-    statsByPlayer[l.player_id].minutes += l.min_played || 0;
-    if (!l.started && l.sub_in != null) statsByPlayer[l.player_id].subs_in++;
-  }
-  const goalsByPlayer = {};
-  for (const g of goalsRes.data || []) goalsByPlayer[g.player_id] = (goalsByPlayer[g.player_id] || 0) + 1;
-
-  return rawPlayers.map(p => {
-    const s = statsByPlayer[p.player_id] || { starts: 0, minutes: 0, subs_in: 0 };
+  return (playersRes.data || []).map(p => {
+    const s = statsMap[p.player_id] || {};
     const age = p.dob ? Math.floor((Date.now() - new Date(p.dob)) / (365.25 * 24 * 3600 * 1000)) : null;
     return {
       player_id: p.player_id,
@@ -207,78 +131,49 @@ async function fetchPlayers(teamId, seasonId) {
       position2: p.position2,
       strong_foot: p.strong_foot,
       age,
-      goals: goalsByPlayer[p.player_id] || 0,
-      minutes: s.minutes,
-      starts: s.starts,
-      apps: s.starts + s.subs_in,
-      subs_in: s.subs_in,
+      goals: s.goals_total || 0,
+      minutes: s.minutes_total || 0,
+      starts: s.starts_total || 0,
+      apps: s.apps_total || 0,
+      subs_in: s.subs_in_total || 0,
     };
   });
 }
 
 async function fetchPlayerGames(playerId) {
   const sb = getClient();
-  const [lineupsRes, allTeams] = await Promise.all([
-    sb.schema('raw').from('lineups')
-      .select('game_id, team_id, started, min_played, sub_in, sub_out')
-      .eq('player_id', playerId),
-    fetchTeams(null),
-  ]);
-  if (lineupsRes.error) throw lineupsRes.error;
-  if (!lineupsRes.data.length) return [];
-
-  const gameIds = lineupsRes.data.map(l => l.game_id);
-  const teamMap = Object.fromEntries(allTeams.map(t => [t.team_id, t]));
-
-  const [gamesRes, goalsRes] = await Promise.all([
-    sb.schema('raw').from('games')
-      .select('game_id, game_date, game_round, home_team_id, away_team_id, home_goals, away_goals')
-      .in('game_id', gameIds),
-    sb.schema('raw').from('goals')
-      .select('game_id').eq('player_id', playerId).in('game_id', gameIds),
-  ]);
-  if (gamesRes.error) throw gamesRes.error;
-
-  const gameMap = Object.fromEntries((gamesRes.data || []).map(g => [g.game_id, g]));
-  const goalsPerGame = {};
-  for (const g of goalsRes.data || []) goalsPerGame[g.game_id] = (goalsPerGame[g.game_id] || 0) + 1;
-
-  return lineupsRes.data.map(l => {
-    const game = gameMap[l.game_id];
-    if (!game) return null;
-    const isHome = l.team_id == game.home_team_id;
-    const gs = isHome ? game.home_goals : game.away_goals;
-    const gc = isHome ? game.away_goals : game.home_goals;
-    const points = gs > gc ? 3 : gs === gc ? 1 : 0;
-    const opponentId = isHome ? game.away_team_id : game.home_team_id;
-    return {
-      game_id: l.game_id,
-      game_date: game.game_date,
-      game_round: game.game_round,
-      game_location: isHome ? 'home' : 'away',
-      started: l.started,
-      min_played: l.min_played,
-      sub_in_min: l.sub_in,
-      sub_out_min: l.sub_out,
-      goals: goalsPerGame[l.game_id] || 0,
-      goals_scored: gs,
-      goals_conceded: gc,
-      result: points === 3 ? 'W' : points === 1 ? 'D' : 'L',
-      opponent_name: teamMap[opponentId]?.team_name || `Team ${opponentId}`,
-    };
-  }).filter(Boolean).sort((a, b) => (b.game_date || '').localeCompare(a.game_date || ''));
+  const { data, error } = await sb.schema(SCHEMA).from('fct_player_games')
+    .select('game_id, game_date, game_round, game_location, started, min_played, sub_in, sub_out, goals_scored, goals_conceded, goals_by_player, result, opponent_team_id, opponent_name')
+    .eq('player_id', playerId)
+    .order('game_date', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(g => ({
+    game_id: g.game_id,
+    game_date: g.game_date,
+    game_round: g.game_round,
+    game_location: g.game_location,
+    started: g.started,
+    min_played: g.min_played,
+    sub_in_min: g.sub_in,
+    sub_out_min: g.sub_out,
+    goals: g.goals_by_player || 0,
+    goals_scored: g.goals_scored,
+    goals_conceded: g.goals_conceded,
+    result: g.result,
+    opponent_name: g.opponent_name || `Team ${g.opponent_team_id}`,
+  }));
 }
 
 async function fetchGameDetail(gameId) {
   const sb = getClient();
   const [gameRes, lineupsRes, goalsRes, allTeams] = await Promise.all([
-    sb.schema('raw').from('games')
-      .select('game_id, game_date, game_round, home_team_id, away_team_id, home_goals, away_goals')
+    sb.schema(SCHEMA).from('fct_games')
+      .select('game_id, game_date, game_round, home_team_id, away_team_id, home_goals, away_goals, season_id')
       .eq('game_id', gameId),
-    sb.schema('raw').from('lineups')
+    sb.schema(SCHEMA).from('fct_lineups')
       .select('player_id, team_id, started, min_played, sub_in, sub_out')
       .eq('game_id', gameId),
-    sb.schema('raw').from('goals')
+    sb.schema(SCHEMA).from('fct_goals')
       .select('goal_id, goal_min, player_id, goal_for_team_id, own_goal, game_situation')
       .eq('game_id', gameId).order('goal_min'),
     fetchTeams(null),
@@ -295,7 +190,7 @@ async function fetchGameDetail(gameId) {
   ])];
   let playerMap = {};
   if (allPlayerIds.length) {
-    const { data: players } = await sb.schema('raw').from('players')
+    const { data: players } = await sb.schema(SCHEMA).from('dim_players')
       .select('player_id, firstname, lastname').in('player_id', allPlayerIds);
     for (const p of players || []) playerMap[p.player_id] = `${p.firstname || ''} ${p.lastname || ''}`.trim();
   }
@@ -319,26 +214,16 @@ async function fetchGameDetail(gameId) {
 
 async function fetchTeamGoalsTiming(teamId, seasonId) {
   const sb = getClient();
-  const [homeRes, awayRes] = await Promise.all([
-    sb.schema('raw').from('games').select('game_id, game_date').eq('home_team_id', teamId),
-    sb.schema('raw').from('games').select('game_id, game_date').eq('away_team_id', teamId),
-  ]);
-  if (homeRes.error) throw homeRes.error;
-  if (awayRes.error) throw awayRes.error;
+  let gamesQ = sb.schema(SCHEMA).from('fct_team_games')
+    .select('game_id').eq('team_id', teamId);
+  if (seasonId) gamesQ = gamesQ.eq('season_id', seasonId);
+  const { data: tgames, error: tgErr } = await gamesQ;
+  if (tgErr) throw tgErr;
 
-  let allGames = [...homeRes.data, ...awayRes.data];
-  if (seasonId) {
-    const { data: seasons } = await sb.schema('raw').from('seasons')
-      .select('valid_from, valid_to').eq('season_id', seasonId);
-    if (seasons && seasons.length) {
-      const { valid_from, valid_to } = seasons[0];
-      allGames = allGames.filter(g => g.game_date >= valid_from && g.game_date <= valid_to);
-    }
-  }
-  const gameIds = allGames.map(g => g.game_id);
+  const gameIds = (tgames || []).map(g => g.game_id);
   if (!gameIds.length) return [];
 
-  const { data: goals, error } = await sb.schema('raw').from('goals')
+  const { data: goals, error } = await sb.schema(SCHEMA).from('fct_goals')
     .select('goal_min, goal_for_team_id').in('game_id', gameIds);
   if (error) throw error;
 
@@ -382,22 +267,14 @@ async function fetchLeagueAverages(leagueId, seasonId) {
   }
 
   const teamIds = teams.map(t => t.team_id);
-  let seasonRange = null;
-  if (seasonId) {
-    const { data: seasons } = await sb.schema('raw').from('seasons')
-      .select('valid_from, valid_to').eq('season_id', seasonId);
-    if (seasons && seasons.length) seasonRange = seasons[0];
-  }
-  let homeQ = sb.schema('raw').from('games').select('home_team_id').in('home_team_id', teamIds);
-  let awayQ = sb.schema('raw').from('games').select('away_team_id').in('away_team_id', teamIds);
-  if (seasonRange) {
-    homeQ = homeQ.gte('game_date', seasonRange.valid_from).lte('game_date', seasonRange.valid_to);
-    awayQ = awayQ.gte('game_date', seasonRange.valid_from).lte('game_date', seasonRange.valid_to);
-  }
-  const [hgRes, agRes] = await Promise.all([homeQ, awayQ]);
+  let gpQuery = sb.schema(SCHEMA).from('fct_team_games')
+    .select('team_id').in('team_id', teamIds);
+  if (seasonId) gpQuery = gpQuery.eq('season_id', seasonId);
+  if (leagueId) gpQuery = gpQuery.eq('league_id', leagueId);
+  const { data: gpData, error: gpErr } = await gpQuery;
+  if (gpErr) throw gpErr;
   const gpMap = {};
-  for (const g of hgRes.data || []) gpMap[g.home_team_id] = (gpMap[g.home_team_id] || 0) + 1;
-  for (const g of agRes.data || []) gpMap[g.away_team_id] = (gpMap[g.away_team_id] || 0) + 1;
+  for (const g of gpData || []) gpMap[g.team_id] = (gpMap[g.team_id] || 0) + 1;
 
   const avgs = teams.map(t => {
     const s = byTeam[t.team_id] || { gf: 0, ga: 0, pts: 0 };
