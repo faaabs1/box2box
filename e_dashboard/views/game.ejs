@@ -1,0 +1,145 @@
+<%- include('partials/header', { title: 'Game Detail', page, myTeamId }) %>
+
+<%
+  const { game, home_team, away_team, home_lineup, away_lineup, goals } = detail;
+  const homeGoals = goals.filter(g => g.goal_for_team_id == game.home_team_id);
+  const awayGoals = goals.filter(g => g.goal_for_team_id == game.away_team_id);
+  const homeStarters  = home_lineup.filter(l => l.started);
+  const homeSubs      = home_lineup.filter(l => !l.started);
+  const awayStarters  = away_lineup.filter(l => l.started);
+  const awaySubs      = away_lineup.filter(l => !l.started);
+%>
+
+<!-- Back button -->
+<div class="mb-6">
+  <a href="javascript:history.back()" class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
+    ← Back
+  </a>
+</div>
+
+<!-- Match Header -->
+<div class="card p-6 mb-6">
+  <div class="text-center text-xs text-slate-500 mb-3">
+    <% if (game.game_date) { %><%= new Date(game.game_date).toLocaleDateString('de-DE', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) %><% } %>
+    <% if (game.game_round) { %>&nbsp;·&nbsp; Round <%= game.game_round %><% } %>
+  </div>
+  <div class="flex items-center justify-center gap-6 sm:gap-12">
+    <!-- Home Team -->
+    <div class="flex flex-col items-center gap-2 flex-1 min-w-0">
+      <div class="w-16 h-16 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-2xl">🏠</div>
+      <p class="font-bold text-white text-center text-base sm:text-lg leading-tight"><%= home_team.team_name %></p>
+    </div>
+    <!-- Score -->
+    <div class="flex flex-col items-center gap-1 shrink-0">
+      <div class="flex items-center gap-3">
+        <span class="text-5xl font-black text-white"><%= game.home_goals %></span>
+        <span class="text-2xl text-slate-500">–</span>
+        <span class="text-5xl font-black text-white"><%= game.away_goals %></span>
+      </div>
+      <span class="text-xs text-slate-500 font-medium uppercase tracking-wider">Final</span>
+    </div>
+    <!-- Away Team -->
+    <div class="flex flex-col items-center gap-2 flex-1 min-w-0">
+      <div class="w-16 h-16 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-2xl">✈️</div>
+      <p class="font-bold text-white text-center text-base sm:text-lg leading-tight"><%= away_team.team_name %></p>
+    </div>
+  </div>
+
+  <!-- Goal Timeline -->
+  <% if (goals.length) { %>
+    <div class="mt-5 pt-4 border-t border-white/5 flex flex-col gap-1">
+      <p class="text-xs text-slate-500 font-medium uppercase tracking-wider text-center mb-2">Goals</p>
+      <div class="flex flex-col gap-1">
+        <% goals.forEach(g => { %>
+          <% const isHome = g.goal_for_team_id == game.home_team_id; %>
+          <div class="flex items-center <%= isHome ? 'justify-start' : 'justify-end' %> gap-2">
+            <% if (isHome) { %>
+              <span class="text-green-400 text-sm font-bold"><%= g.goal_min %>'</span>
+              <span class="text-xs text-white"><%= g.player_name %><% if (g.own_goal) { %> <span class="text-red-400">(og)</span><% } %></span>
+            <% } else { %>
+              <span class="text-xs text-white"><%= g.player_name %><% if (g.own_goal) { %> <span class="text-red-400">(og)</span><% } %></span>
+              <span class="text-green-400 text-sm font-bold"><%= g.goal_min %>'</span>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+</div>
+
+<!-- Lineups -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+  <!-- Home Lineup -->
+  <div class="card overflow-hidden">
+    <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+      <span class="text-blue-400 text-sm">🏠</span>
+      <h2 class="text-sm font-semibold text-white"><%= home_team.team_name %></h2>
+    </div>
+    <div class="divide-y divide-white/5">
+      <% if (homeStarters.length) { %>
+        <p class="px-4 py-2 text-xs text-slate-500 font-medium uppercase tracking-wider bg-white/2">Starting XI</p>
+        <% homeStarters.forEach(p => { %>
+          <div class="px-4 py-2.5 flex items-center gap-3">
+            <div class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs text-blue-400 font-bold shrink-0"><%= p.player_id %></div>
+            <span class="text-sm text-white flex-1"><%= p.name %></span>
+            <% if (p.sub_out != null) { %><span class="text-xs text-amber-400">↓<%= p.sub_out %>'</span><% } %>
+            <span class="text-xs text-slate-500"><%= p.min_played %>'</span>
+          </div>
+        <% }) %>
+      <% } %>
+      <% if (homeSubs.length) { %>
+        <p class="px-4 py-2 text-xs text-slate-500 font-medium uppercase tracking-wider bg-white/2">Substitutes</p>
+        <% homeSubs.forEach(p => { %>
+          <div class="px-4 py-2.5 flex items-center gap-3 opacity-70">
+            <div class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-400 font-bold shrink-0"><%= p.player_id %></div>
+            <span class="text-sm text-slate-300 flex-1"><%= p.name %></span>
+            <% if (p.sub_in != null) { %><span class="text-xs text-green-400">↑<%= p.sub_in %>'</span><% } %>
+            <% if (p.min_played) { %><span class="text-xs text-slate-500"><%= p.min_played %>'</span><% } %>
+          </div>
+        <% }) %>
+      <% } %>
+      <% if (!home_lineup.length) { %>
+        <p class="px-4 py-6 text-sm text-slate-500 text-center">No lineup data</p>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Away Lineup -->
+  <div class="card overflow-hidden">
+    <div class="px-4 py-3 border-b border-white/5 flex items-center gap-2">
+      <span class="text-purple-400 text-sm">✈️</span>
+      <h2 class="text-sm font-semibold text-white"><%= away_team.team_name %></h2>
+    </div>
+    <div class="divide-y divide-white/5">
+      <% if (awayStarters.length) { %>
+        <p class="px-4 py-2 text-xs text-slate-500 font-medium uppercase tracking-wider bg-white/2">Starting XI</p>
+        <% awayStarters.forEach(p => { %>
+          <div class="px-4 py-2.5 flex items-center gap-3">
+            <div class="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs text-purple-400 font-bold shrink-0"><%= p.player_id %></div>
+            <span class="text-sm text-white flex-1"><%= p.name %></span>
+            <% if (p.sub_out != null) { %><span class="text-xs text-amber-400">↓<%= p.sub_out %>'</span><% } %>
+            <span class="text-xs text-slate-500"><%= p.min_played %>'</span>
+          </div>
+        <% }) %>
+      <% } %>
+      <% if (awaySubs.length) { %>
+        <p class="px-4 py-2 text-xs text-slate-500 font-medium uppercase tracking-wider bg-white/2">Substitutes</p>
+        <% awaySubs.forEach(p => { %>
+          <div class="px-4 py-2.5 flex items-center gap-3 opacity-70">
+            <div class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-400 font-bold shrink-0"><%= p.player_id %></div>
+            <span class="text-sm text-slate-300 flex-1"><%= p.name %></span>
+            <% if (p.sub_in != null) { %><span class="text-xs text-green-400">↑<%= p.sub_in %>'</span><% } %>
+            <% if (p.min_played) { %><span class="text-xs text-slate-500"><%= p.min_played %>'</span><% } %>
+          </div>
+        <% }) %>
+      <% } %>
+      <% if (!away_lineup.length) { %>
+        <p class="px-4 py-6 text-sm text-slate-500 text-center">No lineup data</p>
+      <% } %>
+    </div>
+  </div>
+
+</div>
+
+<%- include('partials/footer') %>
