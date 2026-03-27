@@ -59,6 +59,16 @@ async function fetchLeagueTable(leagueId, seasonId) {
     byTeam[row.team_id].points += row.total_points || 0;
   }
 
+  // Count games played per team
+  const teamIdList = Object.keys(byTeam).map(Number);
+  if (teamIdList.length) {
+    let gpQ = sb.schema(SCHEMA).from('fct_team_games').select('team_id').in('team_id', teamIdList);
+    if (leagueId) gpQ = gpQ.eq('league_id', leagueId);
+    if (seasonId) gpQ = gpQ.eq('season_id', seasonId);
+    const { data: gpData } = await gpQ;
+    for (const g of gpData || []) byTeam[g.team_id].games_played = (byTeam[g.team_id].games_played || 0) + 1;
+  }
+
   // Attach team names
   const teams = await fetchTeams(leagueId);
   const teamMap = Object.fromEntries(teams.map(t => [t.team_id, t]));
@@ -68,25 +78,69 @@ async function fetchLeagueTable(leagueId, seasonId) {
     .sort((a, b) => b.points - a.points || b.goal_difference - a.goal_difference || b.goals_scored - a.goals_scored);
 }
 
-async function fetchTeamGames(teamId, seasonId, leagueId) {
+async function fetchTopScorers(leagueId, seasonId, limit = 10, teamId = null) {
+  const sb = getClient();
+  let teamIds, teamMap;
+  if (teamId) {
+    const allTeams = await fetchTeams(null);
+    teamMap = Object.fromEntries(allTeams.map(t => [t.team_id, t]));
+    teamIds = [teamId];
+  } else {
+    const teams = await fetchTeams(leagueId);
+    if (!teams.length) return [];
+    teamIds = teams.map(t => t.team_id);
+    teamMap = Object.fromEntries(teams.map(t => [t.team_id, t]));
+  }
+
+  let statsQ = sb.schema(SCHEMA).from('fct_player_stats')
+    .select('player_id, team_id, goals_total, apps_total, minutes_total')
+    .in('team_id', teamIds)
+    .gt('goals_total', 0)
+    .order('goals_total', { ascending: false })
+    .limit(limit);
+  if (seasonId) statsQ = statsQ.eq('season_id', seasonId);
+  const { data: stats, error: sErr } = await statsQ;
+  if (sErr) throw sErr;
+  if (!stats || !stats.length) return [];
+
+  const playerIds = stats.map(s => s.player_id);
+  const { data: players, error: pErr } = await sb.schema(SCHEMA).from('dim_players')
+    .select('player_id, firstname, lastname')
+    .in('player_id', playerIds);
+  if (pErr) throw pErr;
+  const playerMap = Object.fromEntries((players || []).map(p => [p.player_id, `${p.firstname || ''} ${p.lastname || ''}`.trim()]));
+
+  return stats.map(s => ({
+    player_name: playerMap[s.player_id] || `#${s.player_id}`,
+    team_name: teamMap[s.team_id]?.team_name || `Team ${s.team_id}`,
+    goals: s.goals_total,
+    apps: s.apps_total,
+    minutes: s.minutes_total,
+    g90: s.minutes_total >= 1 ? (s.goals_total / s.minutes_total * 90).toFixed(2) : '—',
+  }));
+}
+
+async function fetchTeamGames(teamId, seasonId, leagueId, location) {
   const sb = getClient();
   let query = sb.schema(SCHEMA).from('fct_team_games')
     .select('game_id, game_date, game_round, game_location, goals_scored, goals_conceded, goal_difference, points, result, opponent_team_id, opponent_name')
     .eq('team_id', teamId);
   if (seasonId) query = query.eq('season_id', seasonId);
   if (leagueId) query = query.eq('league_id', leagueId);
+  if (location) query = query.eq('game_location', location);
   const { data, error } = await query;
   if (error) throw error;
   return (data || []).sort((a, b) => (b.game_date || '').localeCompare(a.game_date || ''));
 }
 
-async function fetchTeamSeasonStats(teamId, seasonId, leagueId) {
+async function fetchTeamSeasonStats(teamId, seasonId, leagueId, location) {
   const sb = getClient();
   let query = sb.schema(SCHEMA).from('fct_teams_season')
     .select('*')
     .eq('team_id', teamId);
   if (seasonId) query = query.eq('season_id', seasonId);
   if (leagueId) query = query.eq('league_id', leagueId);
+  if (location) query = query.eq('game_location', location);
   const { data, error } = await query;
   if (error) throw error;
 
@@ -212,11 +266,12 @@ async function fetchGameDetail(gameId) {
   };
 }
 
-async function fetchTeamGoalsTiming(teamId, seasonId) {
+async function fetchTeamGoalsTiming(teamId, seasonId, location) {
   const sb = getClient();
   let gamesQ = sb.schema(SCHEMA).from('fct_team_games')
     .select('game_id').eq('team_id', teamId);
   if (seasonId) gamesQ = gamesQ.eq('season_id', seasonId);
+  if (location) gamesQ = gamesQ.eq('game_location', location);
   const { data: tgames, error: tgErr } = await gamesQ;
   if (tgErr) throw tgErr;
 
@@ -289,4 +344,58 @@ async function fetchLeagueAverages(leagueId, seasonId) {
   };
 }
 
-module.exports = { fetchLeagues, fetchSeasons, fetchTeams, fetchLeagueTable, fetchTeamGames, fetchTeamSeasonStats, fetchPlayers, fetchPlayerGames, fetchGameDetail, fetchTeamGoalsTiming, getTeamLeague, fetchLeagueAverages, MY_TEAM_ID };
+async function fetchTeamPlayerMinutes(teamId, seasonId) {
+  const sb = getClient();
+  let q = sb.schema(SCHEMA).from('fct_player_stats')
+    .select('player_id, minutes_total, apps_total, starts_total')
+    .eq('team_id', teamId)
+    .gt('minutes_total', 0)
+    .order('minutes_total', { ascending: false });
+  if (seasonId) q = q.eq('season_id', seasonId);
+  const { data: stats, error: sErr } = await q;
+  if (sErr) throw sErr;
+  if (!stats || !stats.length) return [];
+  const playerIds = stats.map(s => s.player_id);
+  const { data: players, error: pErr } = await sb.schema(SCHEMA).from('dim_players')
+    .select('player_id, firstname, lastname')
+    .in('player_id', playerIds);
+  if (pErr) throw pErr;
+  const nameMap = Object.fromEntries((players || []).map(p => [p.player_id, `${p.firstname || ''} ${p.lastname || ''}`.trim()]));
+  return stats.map(s => ({
+    player_name: nameMap[s.player_id] || `#${s.player_id}`,
+    minutes: s.minutes_total,
+    apps: s.apps_total,
+    starts: s.starts_total,
+  }));
+}
+
+async function fetchTeamGoalsByType(teamId, seasonId, location) {
+  const sb = getClient();
+  let gamesQ = sb.schema(SCHEMA).from('fct_team_games')
+    .select('game_id').eq('team_id', teamId);
+  if (seasonId) gamesQ = gamesQ.eq('season_id', seasonId);
+  if (location) gamesQ = gamesQ.eq('game_location', location);
+  const { data: tgames, error: tgErr } = await gamesQ;
+  if (tgErr) throw tgErr;
+  const gameIds = (tgames || []).map(g => g.game_id);
+  if (!gameIds.length) return [];
+
+  const { data: goals, error } = await sb.schema(SCHEMA).from('fct_goals')
+    .select('game_situation, goal_for_team_id, own_goal').in('game_id', gameIds);
+  if (error) throw error;
+
+  const situations = ['Open Play', 'Penalty', 'Free Kick'];
+  const tally = {};
+  for (const s of situations) tally[s] = { scored: 0, conceded: 0 };
+  for (const g of goals || []) {
+    const sit = g.game_situation || 'Open Play';
+    if (!tally[sit]) tally[sit] = { scored: 0, conceded: 0 };
+    if (g.goal_for_team_id == teamId) tally[sit].scored++;
+    else tally[sit].conceded++;
+  }
+  return situations
+    .filter(s => tally[s].scored + tally[s].conceded > 0)
+    .map(s => ({ situation: s, scored: tally[s].scored, conceded: tally[s].conceded }));
+}
+
+module.exports = { fetchLeagues, fetchSeasons, fetchTeams, fetchLeagueTable, fetchTopScorers, fetchTeamGames, fetchTeamSeasonStats, fetchTeamPlayerMinutes, fetchTeamGoalsByType, fetchPlayers, fetchPlayerGames, fetchGameDetail, fetchTeamGoalsTiming, getTeamLeague, fetchLeagueAverages, MY_TEAM_ID };

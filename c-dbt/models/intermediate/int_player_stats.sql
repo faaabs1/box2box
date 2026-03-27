@@ -4,6 +4,7 @@ with goals_by_player as (
         season_id,
         count(*) as goals_scored
     from {{ ref('stg_goals') }}
+    where own_goal = false
     group by player_id, season_id
 )
 select 

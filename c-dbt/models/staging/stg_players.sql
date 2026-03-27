@@ -9,3 +9,4 @@ select
         dob,
         team_id
 from {{ ref('snp_players') }}
+where dbt_valid_to is null

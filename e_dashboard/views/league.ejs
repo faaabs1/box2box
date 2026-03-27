@@ -20,6 +20,24 @@
   </div>
 </div>
 
+<%
+  const teamsWithGames = table.filter(r => (r.games_played || 0) > 0);
+  const avgGF = teamsWithGames.length ? (teamsWithGames.reduce((s, r) => s + r.goals_scored / r.games_played, 0) / teamsWithGames.length).toFixed(2) : '-';
+  const avgGA = teamsWithGames.length ? (teamsWithGames.reduce((s, r) => s + r.goals_conceded / r.games_played, 0) / teamsWithGames.length).toFixed(2) : '-';
+%>
+<div class="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-6">
+  <div class="card p-4 flex flex-col gap-1">
+    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Avg Goals Scored / Game</span>
+    <span class="text-3xl font-bold text-green-400"><%= avgGF %></span>
+    <span class="text-xs text-slate-500">per team · selected season</span>
+  </div>
+  <div class="card p-4 flex flex-col gap-1">
+    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Avg Goals Conceded / Game</span>
+    <span class="text-3xl font-bold text-red-400"><%= avgGA %></span>
+    <span class="text-xs text-slate-500">per team · selected season</span>
+  </div>
+</div>
+
 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
   <!-- Standings Table -->
@@ -68,7 +86,7 @@
     <div>
       <h2 class="text-lg font-semibold text-white mb-3">Goals Scored</h2>
       <div class="card p-4">
-        <canvas id="goalsChart" height="200"></canvas>
+        <canvas id="goalsChart"></canvas>
       </div>
     </div>
     <div>
@@ -81,6 +99,41 @@
 
 </div>
 
+<!-- Top Scorers -->
+<% if (topScorers && topScorers.length) { %>
+<div class="mt-6">
+  <h2 class="text-lg font-semibold text-white mb-3">Top Scorers</h2>
+  <div class="card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-xs text-slate-400 uppercase tracking-wider">
+          <th class="px-4 py-3 text-left w-8">#</th>
+          <th class="px-4 py-3 text-left">Player</th>
+          <th class="px-4 py-3 text-left text-slate-500">Team</th>
+          <th class="px-4 py-3 text-center">Apps</th>
+          <th class="px-4 py-3 text-center">Mins</th>
+          <th class="px-4 py-3 text-center">G/90</th>
+          <th class="px-4 py-3 text-center font-bold text-amber-400">Goals</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% topScorers.forEach((s, i) => { %>
+          <tr class="border-t border-white/5">
+            <td class="px-4 py-3 text-slate-500 text-xs"><%= i + 1 %></td>
+            <td class="px-4 py-3 font-medium text-white"><%= s.player_name %></td>
+            <td class="px-4 py-3 text-slate-400 text-xs"><%= s.team_name %></td>
+            <td class="px-4 py-3 text-center text-slate-300"><%= s.apps %></td>
+            <td class="px-4 py-3 text-center text-slate-300"><%= s.minutes %>'</td>
+            <td class="px-4 py-3 text-center text-amber-300"><%= s.g90 %></td>
+            <td class="px-4 py-3 text-center font-bold text-amber-400"><%= s.goals %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>
+
 <script>
   const tableData = <%- JSON.stringify(table) %>;
   const myTeamId = <%= myTeamId %>;
@@ -91,7 +144,7 @@
     window.location.href = `/?league_id=${league}&season_id=${season}`;
   }
 
-  // Chart: Goals Scored
+  // Chart: Goals Scored (horizontal bar)
   const labels = tableData.map(r => r.team_abb || r.team_name.substring(0, 6));
   const backgroundColors = tableData.map(r => r.team_id == myTeamId ? '#f39c12' : 'rgba(99,179,237,0.6)');
   const borderColors = tableData.map(r => r.team_id == myTeamId ? '#f39c12' : 'rgba(99,179,237,0.9)');
@@ -110,10 +163,11 @@
       }]
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
         y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
       }
     }

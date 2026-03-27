@@ -54,7 +54,12 @@
         FWD: { bg:'rgba(239,68,68,0.12)', border:'rgba(239,68,68,0.35)', text:'#f87171' },
       };
       const pos = (p.position1 || '').toUpperCase();
-      const posGroup = pos.startsWith('GK') ? 'GK' : pos.startsWith('D') ? 'DEF' : pos.startsWith('M') ? 'MID' : pos.startsWith('F') || pos.startsWith('A') ? 'FWD' : '';
+      const midSet = new Set(['CM','DM','CDM','AM','CAM','LAM','RAM','LM','RM','DMF','AMF']);
+      const posGroup = pos.startsWith('GK') ? 'GK'
+        : (pos.startsWith('M') || midSet.has(pos)) ? 'MID'
+        : pos.startsWith('D') ? 'DEF'
+        : (pos.startsWith('F') || pos.startsWith('A') || pos.startsWith('W') || pos.startsWith('S')) ? 'FWD'
+        : '';
       const pc = posColors[posGroup] || { bg:'rgba(148,163,184,0.1)', border:'rgba(148,163,184,0.3)', text:'#94a3b8' };
     %>
     <div class="player-card card p-4 flex flex-col gap-3 transition-all hover:-translate-y-1 hover:border-white/25 cursor-pointer"
@@ -83,12 +88,17 @@
       </div>
 
       <!-- Stats Grid -->
-      <div class="grid grid-cols-3 gap-2 pt-1 border-t border-white/5">
+      <% const g90 = p.minutes >= 1 ? (p.goals / p.minutes * 90).toFixed(2) : '—'; %>
+      <div class="grid grid-cols-4 gap-2 pt-1 border-t border-white/5">
         <div class="text-center">
           <p class="text-xl font-bold text-white"><%= p.goals %></p>
           <p class="text-xs text-slate-500">Goals</p>
         </div>
         <div class="text-center border-x border-white/5">
+          <p class="text-xl font-bold text-amber-300"><%= g90 %></p>
+          <p class="text-xs text-slate-500">G/90</p>
+        </div>
+        <div class="text-center border-r border-white/5">
           <p class="text-xl font-bold text-white"><%= p.apps %></p>
           <p class="text-xs text-slate-500">Apps</p>
         </div>
@@ -180,7 +190,10 @@
 
     fetch(`/api/player-games/${playerId}`)
       .then(r => r.json())
-      .then(renderGames)
+      .then(data => {
+        if (data && data.error) { renderPanelError(data.error); return; }
+        renderGames(Array.isArray(data) ? data : []);
+      })
       .catch(e => renderPanelError(e.message));
   }
 
@@ -198,6 +211,7 @@
     const goals  = games.reduce((s, g) => s + (g.goals || 0), 0);
     const starts = games.filter(g => g.started).length;
     const mins   = games.reduce((s, g) => s + (g.min_played || 0), 0);
+    const g90 = mins >= 1 ? (goals / mins * 90).toFixed(2) : '—';
     document.getElementById('panelSubtitle').textContent = `${games.length} apps · ${starts} starts`;
 
     const rCls = { W:'badge-W', D:'badge-D', L:'badge-L' };
@@ -232,10 +246,11 @@
     }).join('');
 
     content.innerHTML = `
-      <div class="grid grid-cols-3 gap-2 mb-3">
+      <div class="grid grid-cols-4 gap-2 mb-3">
         <div class="card p-3 text-center"><p class="text-xl font-bold text-white">${games.length}</p><p class="text-xs text-slate-500">Apps</p></div>
         <div class="card p-3 text-center"><p class="text-xl font-bold text-amber-400">${goals}</p><p class="text-xs text-slate-500">Goals</p></div>
-        <div class="card p-3 text-center"><p class="text-xl font-bold text-white">${mins}'</p><p class="text-xs text-slate-500">Minutes</p></div>
+        <div class="card p-3 text-center"><p class="text-xl font-bold text-amber-300">${g90}</p><p class="text-xs text-slate-500">G/90</p></div>
+        <div class="card p-3 text-center"><p class="text-xl font-bold text-white">${mins}'</p><p class="text-xs text-slate-500">Mins</p></div>
       </div>
       <div class="flex gap-2 mb-4">
         <span class="badge badge-W flex-1 text-center py-1">${wins}W</span>
