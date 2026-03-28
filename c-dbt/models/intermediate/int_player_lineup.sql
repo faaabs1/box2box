@@ -2,16 +2,13 @@ with base as (
     select
         li.player_id,
         li.season_id,
-        case
-            when li.team_id = g.home_team_id then 'home'
-            else 'away'
-        end as game_location,
+        {{ game_location('li.team_id', 'g.home_team_id') }} as game_location,
         li.min_played,
         case when li.started = TRUE then 1 else 0 end as started,
         case when li.sub_in = TRUE then 1 else 0 end as sub_in,
         case when li.sub_out = TRUE then 1 else 0 end as sub_out
     from {{ ref('stg_lineups') }} li
-    join {{ ref('fct_games') }} g on li.game_id = g.game_id
+    join {{ ref('stg_games') }} g on li.game_id = g.game_id
 )
 select 
     player_id,

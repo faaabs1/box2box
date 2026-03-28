@@ -4,17 +4,9 @@ select
     EXTRACT(ISODOW FROM game_date) AS day_of_week_num,
     TRIM(TO_CHAR(game_date, 'Day')) AS day_name,
 
-    CASE 
-        WHEN g.home_goals > g.away_goals THEN 3
-        WHEN g.home_goals = g.away_goals THEN 1
-        ELSE 0 
-    END as home_points,
+    {{ points_from_goals('g.home_goals', 'g.away_goals') }} as home_points,
 
-    CASE 
-        WHEN g.home_goals < g.away_goals THEN 3
-        WHEN g.home_goals = g.away_goals THEN 1
-        ELSE 0 
-    END as away_points,
+    {{ points_from_goals('g.away_goals', 'g.home_goals') }} as away_points,
 
     g.home_goals - g.away_goals as home_GD,
     g.away_goals - g.home_goals as away_GD

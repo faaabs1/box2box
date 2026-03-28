@@ -1,4 +1,5 @@
 <%- include('partials/header', { title: 'League Table', page, myTeamId }) %>
+<% const isAllVenues = selectedLocation === 'all'; %>
 
 <!-- Filters -->
 <div class="flex flex-wrap items-end gap-3 mb-8">
@@ -18,81 +19,156 @@
       <% }) %>
     </select>
   </div>
+  <div>
+    <label class="block text-xs text-slate-400 mb-1 font-medium">Venue</label>
+    <select id="venueSelect" onchange="applyFilters()">
+      <option value="all"  <%= selectedLocation === 'all'  ? 'selected' : '' %>>All</option>
+      <option value="home" <%= selectedLocation === 'home' ? 'selected' : '' %>>Home</option>
+      <option value="away" <%= selectedLocation === 'away' ? 'selected' : '' %>>Away</option>
+    </select>
+  </div>
 </div>
 
 <%
-  const teamsWithGames = table.filter(r => (r.games_played || 0) > 0);
-  const avgGF = teamsWithGames.length ? (teamsWithGames.reduce((s, r) => s + r.goals_scored / r.games_played, 0) / teamsWithGames.length).toFixed(2) : '-';
-  const avgGA = teamsWithGames.length ? (teamsWithGames.reduce((s, r) => s + r.goals_conceded / r.games_played, 0) / teamsWithGames.length).toFixed(2) : '-';
+  const gs = leagueGoalStats || {};
 %>
-<div class="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-6">
-  <div class="card p-4 flex flex-col gap-1">
-    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Avg Goals Scored / Game</span>
-    <span class="text-3xl font-bold text-green-400"><%= avgGF %></span>
-    <span class="text-xs text-slate-500">per team · selected season</span>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+  <div class="card p-4 flex flex-col gap-1 sm:col-span-1">
+    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Total Goals</span>
+    <span class="text-3xl font-bold text-white"><%= gs.total ?? '-' %></span>
+    <span class="text-xs text-slate-500"><%= gs.games ?? 0 %> games &middot; <span class="text-amber-300"><%= gs.avg_per_game ?? '-' %></span> per game</span>
   </div>
   <div class="card p-4 flex flex-col gap-1">
-    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Avg Goals Conceded / Game</span>
-    <span class="text-3xl font-bold text-red-400"><%= avgGA %></span>
-    <span class="text-xs text-slate-500">per team · selected season</span>
+    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Home Goals</span>
+    <span class="text-3xl font-bold text-green-400"><%= gs.home ?? '-' %></span>
+    <span class="text-xs text-slate-500"><span class="text-amber-300"><%= gs.avg_home_per_game ?? '-' %></span> per game</span>
+  </div>
+  <div class="card p-4 flex flex-col gap-1">
+    <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Away Goals</span>
+    <span class="text-3xl font-bold text-blue-400"><%= gs.away ?? '-' %></span>
+    <span class="text-xs text-slate-500"><span class="text-amber-300"><%= gs.avg_away_per_game ?? '-' %></span> per game</span>
   </div>
 </div>
 
-<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+<!-- Charts -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+  <div>
+    <h2 class="text-lg font-semibold text-white mb-3">xPts − Pts <span class="text-xs font-normal text-slate-400 ml-1"><%= isAllVenues ? 'season total' : selectedLocation + ' only' %></span></h2>
+    <div class="card p-4">
+      <canvas id="ptsXptsChart"></canvas>
+    </div>
+  </div>
+  <div>
+    <h2 class="text-lg font-semibold text-white mb-3">Current Form <span class="text-xs font-normal text-slate-400 ml-1">normalised rating vs league avg</span></h2>
+    <div class="card p-4">
+      <canvas id="formChart"></canvas>
+    </div>
+  </div>
+</div>
 
-  <!-- Standings Table -->
-  <div class="xl:col-span-2">
-    <h2 class="text-lg font-semibold text-white mb-3">Standings</h2>
-    <div class="card overflow-hidden">
-      <div class="overflow-x-auto">
+<!-- Standings Table -->
+<div class="mb-6">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-lg font-semibold text-white">Standings<% if (!isAllVenues) { %> <span class="text-xs font-normal text-slate-400 ml-1">(<%= selectedLocation %>)</span><% } %></h2>
+    <% if (isAllVenues) { %>
+    <div class="flex gap-1">
+      <button id="sortPts"  onclick="sortTable('pts')"  class="px-3 py-1 rounded text-xs font-semibold border bg-amber-500/20 text-amber-400 border-amber-500/40">Pts</button>
+      <button id="sortXpts" onclick="sortTable('xpts')" class="px-3 py-1 rounded text-xs font-semibold border bg-transparent text-slate-400 border-slate-600">xPts</button>
+    </div>
+    <% } %>
+  </div>
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-xs text-slate-400 uppercase tracking-wider">
               <th class="px-4 py-3 text-left w-8">#</th>
               <th class="px-4 py-3 text-left">Team</th>
+              <th class="px-4 py-3 text-center">GP</th>
               <th class="px-4 py-3 text-center">GF</th>
               <th class="px-4 py-3 text-center">GA</th>
               <th class="px-4 py-3 text-center">GD</th>
               <th class="px-4 py-3 text-center font-bold text-amber-400">Pts</th>
+              <th class="px-4 py-3 text-center text-sky-400" title="Attack rating vs league avg (1.0 = average)">ATT</th>
+              <th class="px-4 py-3 text-center text-purple-400" title="Defence rating vs league avg (1.0 = average)">DEF</th>
+              <th class="px-4 py-3 text-center text-orange-400" title="Form: points in last 5 games vs league avg">FORM</th>
+              <th class="px-4 py-3 text-center font-bold text-white" title="Overall strength (40% attack + 40% defence + 20% form)">STR</th>
+              <% if (isAllVenues) { %>
+              <th class="px-4 py-3 text-center text-teal-400" title="Pythagorean expected points (GF^1.8 / (GF^1.8 + GA^1.8) × GP × 3). Anderson & Dowie formula.">xPts</th>
+              <th class="px-4 py-3 text-center text-slate-400 col-pos" title="Performance position vs actual position (Pythagorean expectation). ↑ = deserves better, ↓ = got lucky">±POS</th>
+              <% } %>
             </tr>
           </thead>
           <tbody id="standingsBody">
             <% table.forEach((row, i) => { %>
-              <tr class="border-t border-white/5 <%= row.team_id == myTeamId ? 'my-row' : '' %>">
+              <tr class="border-t border-white/5 <%= row.team_id == myTeamId ? 'my-row' : '' %>"<% if (isAllVenues) { %> data-pts="<%= row.points %>" data-xpts="<%= row.pyth_points || 0 %>"<% } %>>  
                 <td class="px-4 py-3 text-slate-400 text-xs"><%= i + 1 %></td>
                 <td class="px-4 py-3 font-medium text-white flex items-center gap-2">
                   <% if (row.team_id == myTeamId) { %><span class="text-amber-400">★</span><% } %>
                   <%= row.team_name %>
                 </td>
+                <td class="px-4 py-3 text-center text-slate-400 text-xs"><%= row.games_played ?? '-' %></td>
                 <td class="px-4 py-3 text-center text-slate-300"><%= row.goals_scored %></td>
                 <td class="px-4 py-3 text-center text-slate-300"><%= row.goals_conceded %></td>
                 <td class="px-4 py-3 text-center <%= row.goal_difference > 0 ? 'text-green-400' : row.goal_difference < 0 ? 'text-red-400' : 'text-slate-400' %>">
                   <%= row.goal_difference > 0 ? '+' : '' %><%= row.goal_difference %>
                 </td>
                 <td class="px-4 py-3 text-center font-bold text-amber-400"><%= row.points %></td>
+                <%
+                  const attColor = !row.attack_rating ? 'text-slate-500'
+                    : row.attack_rating >= 1.2 ? 'text-sky-300 font-semibold'
+                    : row.attack_rating >= 0.8 ? 'text-sky-400'
+                    : 'text-slate-400';
+                  const defColor = !row.defence_rating ? 'text-slate-500'
+                    : row.defence_rating >= 1.2 ? 'text-purple-300 font-semibold'
+                    : row.defence_rating >= 0.8 ? 'text-purple-400'
+                    : 'text-slate-400';
+                  const frmColor = !row.form_rating ? 'text-slate-500'
+                    : row.form_rating >= 1.2 ? 'text-orange-300 font-semibold'
+                    : row.form_rating >= 0.8 ? 'text-orange-400'
+                    : 'text-slate-400';
+                  const strColor = !row.overall_strength ? 'text-slate-500'
+                    : row.overall_strength >= 1.2 ? 'text-white font-bold'
+                    : row.overall_strength >= 0.8 ? 'text-slate-200 font-semibold'
+                    : 'text-slate-400';
+                %>
+                <td class="px-4 py-3 text-center text-xs <%= attColor %>" title="ATT: <%= row.attack_rating ?? '-' %>"><%= row.attack_rating ?? '–' %></td>
+                <td class="px-4 py-3 text-center text-xs <%= defColor %>" title="DEF: <%= row.defence_rating ?? '-' %>"><%= row.defence_rating ?? '–' %></td>
+                <td class="px-4 py-3 text-center text-xs <%= frmColor %>" title="<%= row.form_pts_last_5 ?? 0 %> pts in last 5"><%= row.form_rating ?? '–' %></td>
+                <td class="px-4 py-3 text-center text-sm <%= strColor %>"><%= row.overall_strength ?? '–' %></td>
+                <% if (isAllVenues) { %>
+                <%
+                  const actualPos = i + 1;
+                  const pythPos = row.pyth_rank;
+                  const posDiff = pythPos != null ? actualPos - pythPos : null;
+                  // posDiff > 0: actual rank is lower than pyth rank → team underperforming (↑ they should be higher)
+                  // posDiff < 0: actual rank is higher than pyth rank → team overperforming (↓ they should be lower)
+                  const posLabel = posDiff == null ? '–'
+                    : posDiff === 0 ? '='
+                    : posDiff > 0 ? '↑' + posDiff
+                    : '↓' + Math.abs(posDiff);
+                  const posColor = posDiff == null || posDiff === 0 ? 'text-slate-500'
+                    : posDiff > 0 ? 'text-green-400 font-semibold'
+                    : 'text-red-400 font-semibold';
+                %>
+                <%
+                  const pythPtsDiff = row.pyth_points != null ? (row.pyth_points - row.points) : null;
+                  const xPtsColor = pythPtsDiff == null ? 'text-slate-500'
+                    : pythPtsDiff >= 3 ? 'text-teal-300 font-semibold'
+                    : pythPtsDiff >= 0 ? 'text-teal-400'
+                    : pythPtsDiff >= -3 ? 'text-slate-400'
+                    : 'text-red-400';
+                %>
+                <td class="px-4 py-3 text-center text-xs <%= xPtsColor %>" title="xPts: <%= row.pyth_points ?? '?' %>, Actual: <%= row.points %>. Diff: <%= pythPtsDiff != null ? (pythPtsDiff > 0 ? '+' : '') + pythPtsDiff.toFixed(1) : '?' %>"><%= row.pyth_points ?? '–' %></td>
+                <td class="px-4 py-3 text-center text-xs col-pos <%= posColor %>" title="Pyth rank: <%= pythPos ?? '?' %>, Actual: <%= actualPos %>. Pyth pts: <%= row.pyth_points ?? '?' %>"><%= posLabel %></td>
+                <% } %>
               </tr>
             <% }) %>
             <% if (!table.length) { %>
-              <tr><td colspan="6" class="text-center text-slate-500 py-10">No data for selected filters</td></tr>
+              <tr><td colspan="<%= isAllVenues ? 13 : 11 %>" class="text-center text-slate-500 py-10">No data for selected filters</td></tr>
             <% } %>
           </tbody>
         </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Charts Column -->
-  <div class="flex flex-col gap-6">
-    <div>
-      <h2 class="text-lg font-semibold text-white mb-3">Goals Scored</h2>
-      <div class="card p-4">
-        <canvas id="goalsChart"></canvas>
-      </div>
-    </div>
-    <div>
-      <h2 class="text-lg font-semibold text-white mb-3">Points</h2>
-      <div class="card p-4">
-        <canvas id="pointsChart" height="200"></canvas>
       </div>
     </div>
   </div>
@@ -141,23 +217,119 @@
   function applyFilters() {
     const league = document.getElementById('leagueSelect').value;
     const season = document.getElementById('seasonSelect').value;
-    window.location.href = `/?league_id=${league}&season_id=${season}`;
+    const venue  = document.getElementById('venueSelect').value;
+    window.location.href = `/?league_id=${league}&season_id=${season}&location=${venue}`;
   }
 
-  // Chart: Goals Scored (horizontal bar)
-  const labels = tableData.map(r => r.team_abb || r.team_name.substring(0, 6));
-  const backgroundColors = tableData.map(r => r.team_id == myTeamId ? '#f39c12' : 'rgba(99,179,237,0.6)');
-  const borderColors = tableData.map(r => r.team_id == myTeamId ? '#f39c12' : 'rgba(99,179,237,0.9)');
+  function sortTable(by) {
+    const tbody = document.getElementById('standingsBody');
+    const rows  = Array.from(tbody.querySelectorAll('tr[data-pts]'));
+    rows.sort((a, b) => {
+      const av = parseFloat(a.dataset[by]) || 0;
+      const bv = parseFloat(b.dataset[by]) || 0;
+      if (bv !== av) return bv - av;
+      // secondary: when sorting by xpts, break ties with actual pts
+      if (by === 'xpts') return parseFloat(b.dataset.pts) - parseFloat(a.dataset.pts);
+      return 0;
+    });
+    rows.forEach((r, i) => {
+      r.querySelector('td:first-child').textContent = i + 1;
+      tbody.appendChild(r);
+    });
+    const isPts = by === 'pts';
+    document.getElementById('sortPts').className  = `px-3 py-1 rounded text-xs font-semibold border ${ isPts ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'bg-transparent text-slate-400 border-slate-600'}`;
+    document.getElementById('sortXpts').className = `px-3 py-1 rounded text-xs font-semibold border ${!isPts ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'   : 'bg-transparent text-slate-400 border-slate-600'}`;
+    // hide ±POS column when sorted by xpts (stale values)
+    document.querySelectorAll('.col-pos').forEach(el => el.style.display = isPts ? '' : 'none');
+  }
 
-  new Chart(document.getElementById('goalsChart'), {
+  // Helper: compute Pythagorean expected points from goals (exponent 1.8)
+  function calcPyth(gf, ga, gp) {
+    if (!gf || !ga || !gp) return null;
+    const g18 = Math.pow(gf, 1.8), a18 = Math.pow(ga, 1.8);
+    return parseFloat((g18 / (g18 + a18) * gp * 3).toFixed(1));
+  }
+
+  const isAllVenues = <%= isAllVenues ? 'true' : 'false' %>;
+
+  // xPts − Pts difference bar (works for all venues using table-data goals)
+  if (document.getElementById('ptsXptsChart')) {
+    const diffData = tableData.map(r => {
+      // For split views always recompute from split goals — pyth_points on the row is season-total
+      const xp = isAllVenues && r.pyth_points != null
+        ? parseFloat(r.pyth_points)                                   // pre-computed season total
+        : calcPyth(r.goals_scored, r.goals_conceded, r.games_played); // split-specific
+      return xp != null ? parseFloat((xp - r.points).toFixed(1)) : null;
+    });
+    const diffColors = tableData.map((r, i) => {
+      if (r.team_id == myTeamId) return 'rgba(251,191,36,0.85)';
+      return (diffData[i] ?? 0) > 0 ? 'rgba(45,212,191,0.7)' : 'rgba(239,68,68,0.65)';
+    });
+    new Chart(document.getElementById('ptsXptsChart'), {
+      type: 'bar',
+      data: {
+        labels: tableData.map(r => r.team_abb || r.team_name.substring(0, 6)),
+        datasets: [{
+          label: 'xPts − Pts',
+          data: diffData,
+          backgroundColor: diffColors,
+          borderColor: diffColors.map(c => c.replace(/[\d.]+\)$/, '1)')),
+          borderWidth: 1,
+          borderRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => tableData[items[0].dataIndex].team_name,
+              label: (item) => {
+                const r = tableData[item.dataIndex];
+                const xp = isAllVenues && r.pyth_points != null
+                  ? parseFloat(r.pyth_points)
+                  : calcPyth(r.goals_scored, r.goals_conceded, r.games_played);
+                const d = item.raw;
+                const sign = d > 0 ? '+' : '';
+                return [
+                  `xPts − Pts: ${sign}${d}`,
+                  `Actual Pts: ${r.points}`,
+                  `xPts: ${xp ?? '–'}`,
+                  d > 0 ? '↑ Underperforming luck' : d < 0 ? '↓ Overperforming luck' : 'On par',
+                ];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.06)' } }
+        }
+      }
+    });
+  }
+
+  // Form chart — sorted by form_rating descending (normalised: 1.0 = league avg)
+  const formSorted = [...tableData].sort((a, b) => (b.form_rating ?? 0) - (a.form_rating ?? 0));
+  const formColors = formSorted.map(r => {
+    if (r.team_id == myTeamId) return 'rgba(251,191,36,0.9)';
+    const v = r.form_rating ?? 0;
+    if (v >= 1.4) return 'rgba(52,211,153,0.85)';
+    if (v >= 1.0) return 'rgba(52,211,153,0.6)';
+    if (v >= 0.7) return 'rgba(99,179,237,0.6)';
+    if (v >= 0.4) return 'rgba(251,191,36,0.5)';
+    return 'rgba(239,68,68,0.6)';
+  });
+  new Chart(document.getElementById('formChart'), {
     type: 'bar',
     data: {
-      labels,
+      labels: formSorted.map(r => r.team_abb || r.team_name.substring(0, 6)),
       datasets: [{
-        label: 'Goals',
-        data: tableData.map(r => r.goals_scored),
-        backgroundColor: backgroundColors,
-        borderColor: borderColors,
+        label: 'Form rating',
+        data: formSorted.map(r => r.form_rating ?? 0),
+        backgroundColor: formColors,
+        borderColor: formColors.map(c => c.replace(/[\d.]+\)$/, '1)')),
         borderWidth: 1,
         borderRadius: 4,
       }]
@@ -165,32 +337,25 @@
     options: {
       indexAxis: 'y',
       responsive: true,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => formSorted[items[0].dataIndex].team_name,
+            label: (item) => {
+              const r = formSorted[item.dataIndex];
+              return [
+                `Form rating: ${r.form_rating ?? '–'}  (1.0 = league avg)`,
+                `Pts last 5:  ${r.form_pts_last_5 ?? '–'} / 15`,
+                `Actual Pts:  ${r.points}`,
+                `xPts:        ${r.pyth_points ?? '–'}`,
+              ];
+            }
+          }
+        }
+      },
       scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true },
-        y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
-    }
-  });
-
-  new Chart(document.getElementById('pointsChart'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Points',
-        data: tableData.map(r => r.points),
-        backgroundColor: tableData.map(r => r.team_id == myTeamId ? '#f39c12' : 'rgba(167,139,250,0.6)'),
-        borderColor: tableData.map(r => r.team_id == myTeamId ? '#f39c12' : 'rgba(167,139,250,0.9)'),
-        borderWidth: 1,
-        borderRadius: 4,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        x: { min: 0, ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
         y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
       }
     }

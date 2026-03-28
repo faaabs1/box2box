@@ -49,6 +49,8 @@
 <!-- Season Stats Cards -->
 <%
   const gp     = gamesPlayed || 1;
+  const gpH    = games.filter(g => g.game_location === 'home').length || 1;
+  const gpA    = games.filter(g => g.game_location === 'away').length || 1;
   const avgPts = stats.points / gp;
   const avgGF  = stats.goals_scored / gp;
   const avgGA  = stats.goals_conceded / gp;
@@ -60,36 +62,74 @@
   const losses = games.filter(g => g.result === 'L').length;
 %>
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+
+  <!-- Points -->
   <div class="card p-5">
-    <p class="text-xs text-slate-400 font-medium mb-1">Points</p>
+    <p class="text-xs text-slate-400 font-medium mb-2">Points</p>
     <p class="text-3xl font-bold text-amber-400"><%= stats.points %></p>
     <p class="text-sm text-slate-300 mt-1"><%= fmt2(avgPts) %><span class="text-slate-500 text-xs ml-1">/game</span></p>
     <% if (lAvgs.avg_pts != null) { const d = avgPts - lAvgs.avg_pts; %>
-      <p class="text-xs font-medium mt-0.5 <%= d >= 0 ? 'text-green-400' : 'text-red-400' %>"><%= dSign(d) %> vs league avg</p>
+      <p class="text-xs font-medium mt-0.5 <%= d >= 0 ? 'text-green-400' : 'text-red-400' %>"><%= dSign(d) %> vs lg</p>
     <% } %>
+    <div class="mt-3 pt-2 border-t border-white/5 grid grid-cols-2 gap-x-2 text-xs">
+      <div><span class="text-slate-500">Home</span><br><span class="text-white font-semibold"><%= stats.home?.points ?? '-' %></span><span class="text-slate-500 ml-1"><%= fmt2((stats.home?.points||0)/gpH) %>/g</span></div>
+      <div><span class="text-slate-500">Away</span><br><span class="text-white font-semibold"><%= stats.away?.points ?? '-' %></span><span class="text-slate-500 ml-1"><%= fmt2((stats.away?.points||0)/gpA) %>/g</span></div>
+    </div>
   </div>
+
+  <!-- Goal Difference + W/D/L -->
   <div class="card p-5">
-    <p class="text-xs text-slate-400 font-medium mb-1">Goals Scored</p>
+    <p class="text-xs text-slate-400 font-medium mb-2">Goal Difference</p>
+    <% const gd = stats.goal_difference; %>
+    <p class="text-3xl font-bold <%= gd > 0 ? 'text-green-400' : gd < 0 ? 'text-red-400' : 'text-slate-400' %>"><%= gd >= 0 ? '+' : '' %><%= gd %></p>
+    <p class="text-sm text-slate-300 mt-1"><%= dSign(gd/gp) %><span class="text-slate-500 text-xs ml-1">/game</span></p>
+    <div class="mt-3 pt-2 border-t border-white/5 grid grid-cols-2 gap-x-2 text-xs">
+      <% const gdH = stats.home?.goal_difference ?? 0; const gdA = stats.away?.goal_difference ?? 0; %>
+      <div><span class="text-slate-500">Home</span><br><span class="font-semibold <%= gdH >= 0 ? 'text-green-300' : 'text-red-300' %>"><%= gdH >= 0 ? '+' : '' %><%= gdH %></span><span class="text-slate-500 ml-1"><%= dSign(gdH/gpH) %>/g</span></div>
+      <div><span class="text-slate-500">Away</span><br><span class="font-semibold <%= gdA >= 0 ? 'text-green-300' : 'text-red-300' %>"><%= gdA >= 0 ? '+' : '' %><%= gdA %></span><span class="text-slate-500 ml-1"><%= dSign(gdA/gpA) %>/g</span></div>
+    </div>
+    <p class="text-xs text-slate-500 mt-2"><%= wins %>W · <%= draws %>D · <%= losses %>L</p>
+  </div>
+
+  <!-- Goals Scored -->
+  <div class="card p-5">
+    <p class="text-xs text-slate-400 font-medium mb-2">Goals Scored</p>
     <p class="text-3xl font-bold text-green-400"><%= stats.goals_scored %></p>
     <p class="text-sm text-slate-300 mt-1"><%= fmt2(avgGF) %><span class="text-slate-500 text-xs ml-1">/game</span></p>
     <% if (lAvgs.avg_gf != null) { const d = avgGF - lAvgs.avg_gf; %>
-      <p class="text-xs font-medium mt-0.5 <%= d >= 0 ? 'text-green-400' : 'text-red-400' %>"><%= dSign(d) %> vs league avg</p>
+      <p class="text-xs font-medium mt-0.5 <%= d >= 0 ? 'text-green-400' : 'text-red-400' %>"><%= dSign(d) %> vs lg</p>
     <% } %>
+    <div class="mt-3 pt-2 border-t border-white/5 grid grid-cols-2 gap-x-2 text-xs">
+      <div><span class="text-slate-500">Home</span><br><span class="text-green-300 font-semibold"><%= stats.home?.goals_scored ?? '-' %></span><span class="text-slate-500 ml-1"><%= fmt2((stats.home?.goals_scored||0)/gpH) %>/g</span></div>
+      <div><span class="text-slate-500">Away</span><br><span class="text-green-300 font-semibold"><%= stats.away?.goals_scored ?? '-' %></span><span class="text-slate-500 ml-1"><%= fmt2((stats.away?.goals_scored||0)/gpA) %>/g</span></div>
+    </div>
   </div>
+
+  <!-- Goals Conceded -->
   <div class="card p-5">
-    <p class="text-xs text-slate-400 font-medium mb-1">Goals Conceded</p>
+    <p class="text-xs text-slate-400 font-medium mb-2">Goals Conceded</p>
     <p class="text-3xl font-bold text-red-400"><%= stats.goals_conceded %></p>
     <p class="text-sm text-slate-300 mt-1"><%= fmt2(avgGA) %><span class="text-slate-500 text-xs ml-1">/game</span></p>
     <% if (lAvgs.avg_ga != null) { const d = avgGA - lAvgs.avg_ga; %>
-      <p class="text-xs font-medium mt-0.5 <%= d <= 0 ? 'text-green-400' : 'text-red-400' %>"><%= dSign(d) %> vs league avg</p>
+      <p class="text-xs font-medium mt-0.5 <%= d <= 0 ? 'text-green-400' : 'text-red-400' %>"><%= dSign(d) %> vs lg</p>
     <% } %>
+    <div class="mt-3 pt-2 border-t border-white/5 grid grid-cols-2 gap-x-2 text-xs">
+      <div><span class="text-slate-500">Home</span><br><span class="text-red-300 font-semibold"><%= stats.home?.goals_conceded ?? '-' %></span><span class="text-slate-500 ml-1"><%= fmt2((stats.home?.goals_conceded||0)/gpH) %>/g</span></div>
+      <div><span class="text-slate-500">Away</span><br><span class="text-red-300 font-semibold"><%= stats.away?.goals_conceded ?? '-' %></span><span class="text-slate-500 ml-1"><%= fmt2((stats.away?.goals_conceded||0)/gpA) %>/g</span></div>
+    </div>
   </div>
-  <div class="card p-5">
-    <p class="text-xs text-slate-400 font-medium mb-1">W / D / L</p>
-    <p class="text-3xl font-bold text-white"><%= wins %><span class="text-slate-500 mx-1 text-xl">/</span><%= draws %><span class="text-slate-500 mx-1 text-xl">/</span><%= losses %></p>
-    <p class="text-sm text-slate-400 mt-1"><%= gamesPlayed %> games played</p>
+
+</div>
+
+<% if (!selectedLocation && leagueAvgs) { %>
+<!-- Strength over Time -->
+<div class="mb-8">
+  <h2 class="text-lg font-semibold text-white mb-3">Strength over Time <span class="text-xs font-normal text-slate-400 ml-1">rolling vs league avg &middot; 1.0 = average</span></h2>
+  <div class="card p-4">
+    <canvas id="strengthChart" height="120"></canvas>
   </div>
 </div>
+<% } %>
 
 <!-- Top Scorers -->
 <% if (teamScorers && teamScorers.length) { %>
@@ -152,19 +192,21 @@
   </div>
 </div>
 
+<!-- Chart window control -->
+<div class="flex items-center justify-end gap-2 mb-4">
+  <span class="text-xs text-slate-500">Window:</span>
+  <select id="nSelect" onchange="renderTimeCharts()" class="text-xs bg-slate-800 border border-white/10 text-slate-300 rounded px-2 py-1">
+    <option value="5">Last 5 games</option>
+    <option value="10">Last 10 games</option>
+    <option value="all" selected>All games</option>
+  </select>
+</div>
 <!-- Charts 2×2 grid -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-  <!-- Goal Difference (last N) -->
+  <!-- Goal Difference -->
   <div>
-    <div class="flex items-center justify-between mb-3">
-      <h2 class="text-lg font-semibold text-white">Goal Difference</h2>
-      <select id="gdNSelect" onchange="renderGdChart()" class="text-xs bg-slate-800 border border-white/10 text-slate-300 rounded px-2 py-1">
-        <option value="5">Last 5</option>
-        <option value="10">Last 10</option>
-        <option value="all" selected>All</option>
-      </select>
-    </div>
+    <h2 class="text-lg font-semibold text-white mb-3">Goal Difference</h2>
     <div class="card p-4">
       <canvas id="gdChart" height="220"></canvas>
     </div>
@@ -183,6 +225,14 @@
     <h2 class="text-lg font-semibold text-white mb-3">Cumulative Goals</h2>
     <div class="card p-4">
       <canvas id="cumGoalsChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- Cumulative Goal Difference -->
+  <div>
+    <h2 class="text-lg font-semibold text-white mb-3">Cumulative Goal Difference</h2>
+    <div class="card p-4">
+      <canvas id="cumGdChart" height="220"></canvas>
     </div>
   </div>
 
@@ -245,14 +295,21 @@
   const chronoGames = [...games].reverse();
   const gameLabels = chronoGames.map((g, i) => `R${g.game_round || i + 1}`);
 
-  // --- Chart 1: Goal Difference (last N) ---
+  function getWindowSlice() {
+    const nVal = document.getElementById('nSelect').value;
+    return nVal === 'all' ? chronoGames : chronoGames.slice(-parseInt(nVal));
+  }
+  function sliceLabels(slice) {
+    const offset = chronoGames.length - slice.length;
+    return slice.map((g, i) => `R${g.game_round || offset + i + 1}`);
+  }
+
+  // --- Chart 1: Goal Difference ---
   let gdChart;
   let gdSlice = [];
-  function renderGdChart() {
-    const nVal = document.getElementById('gdNSelect').value;
-    gdSlice = nVal === 'all' ? chronoGames : chronoGames.slice(-parseInt(nVal));
-    const offset = chronoGames.length - gdSlice.length;
-    const labels = gdSlice.map((g, i) => `R${g.game_round || offset + i + 1}`);
+  function renderGdChart(slice) {
+    gdSlice = slice || getWindowSlice();
+    const labels = sliceLabels(gdSlice);
     const rawGd = gdSlice.map(g => g.goal_difference != null ? g.goal_difference : (g.goals_scored - g.goals_conceded));
     // Wins/losses as bars; draws get null (invisible)
     const gdData = rawGd.map(v => v === 0 ? null : v);
@@ -302,68 +359,139 @@
       }
     });
   }
-  renderGdChart();
 
   // --- Chart 2: Running average points per game ---
-  let cumPts = 0;
-  const avgPtsArr = chronoGames.map((g, i) => {
-    cumPts += g.points;
-    return +(cumPts / (i + 1)).toFixed(2);
-  });
-  new Chart(document.getElementById('pointsAvgChart'), {
-    type: 'line',
-    data: {
-      labels: gameLabels,
-      datasets: [{
-        label: 'Avg Pts/Game',
-        data: avgPtsArr,
-        borderColor: '#f39c12',
-        backgroundColor: 'rgba(243,156,18,0.1)',
-        tension: 0.3,
-        fill: true,
-        pointRadius: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-        y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+  let avgPtsChartInst;
+  function renderAvgPtsChart(slice) {
+    slice = slice || getWindowSlice();
+    const labels = sliceLabels(slice);
+    let cumPts = 0;
+    const avgPtsArr = slice.map((g, i) => {
+      cumPts += g.points;
+      return +(cumPts / (i + 1)).toFixed(2);
+    });
+    const lgAvgPts = leagueAvgs ? +leagueAvgs.avg_pts.toFixed(2) : null;
+    const lgFlatPts = lgAvgPts !== null ? labels.map(() => lgAvgPts) : [];
+    if (avgPtsChartInst) avgPtsChartInst.destroy();
+    avgPtsChartInst = new Chart(document.getElementById('pointsAvgChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Avg Pts/Game',
+            data: avgPtsArr,
+            borderColor: '#f39c12',
+            backgroundColor: 'rgba(243,156,18,0.1)',
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+          },
+          ...(lgAvgPts !== null ? [{
+            label: 'League Avg',
+            data: lgFlatPts,
+            borderColor: '#94a3b8',
+            borderDash: [5, 4],
+            backgroundColor: 'transparent',
+            tension: 0,
+            fill: false,
+            pointRadius: 0,
+            borderWidth: 1.5,
+          }] : []),
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 }, filter: i => i.text !== 'League Avg' || lgAvgPts !== null } } },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+        }
       }
-    }
-  });
+    });
+  }
 
   // --- Chart 3: Cumulative goals scored vs conceded ---
-  let cGF = 0, cGA = 0;
-  const cumGFArr = chronoGames.map(g => { cGF += g.goals_scored; return cGF; });
-  const cumGAArr = chronoGames.map(g => { cGA += g.goals_conceded; return cGA; });
-  const lgAvgScoredArr = leagueAvgs ? gameLabels.map((_, i) => +((i + 1) * leagueAvgs.avg_gf).toFixed(1)) : [];
-  const lgAvgConcededArr = leagueAvgs ? gameLabels.map((_, i) => +((i + 1) * leagueAvgs.avg_ga).toFixed(1)) : [];
-  new Chart(document.getElementById('cumGoalsChart'), {
-    type: 'line',
-    data: {
-      labels: gameLabels,
-      datasets: [
-        { label: 'Goals Scored', data: cumGFArr, borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.08)', tension: 0.2, fill: false, pointRadius: 3 },
-        { label: 'Goals Conceded', data: cumGAArr, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)', tension: 0.2, fill: false, pointRadius: 3 },
-        ...(leagueAvgs ? [
-          { label: 'Lg Avg Scored', data: lgAvgScoredArr, borderColor: '#4ade80', borderDash: [5, 4], backgroundColor: 'transparent', tension: 0, fill: false, pointRadius: 0, borderWidth: 1.5 },
-          { label: 'Lg Avg Conceded', data: lgAvgConcededArr, borderColor: '#f87171', borderDash: [5, 4], backgroundColor: 'transparent', tension: 0, fill: false, pointRadius: 0, borderWidth: 1.5 },
-        ] : []),
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
-      scales: {
-        x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-        y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+  let cumGoalsChartInst;
+  function renderCumGoalsChart(slice) {
+    slice = slice || getWindowSlice();
+    const labels = sliceLabels(slice);
+    let cGF = 0, cGA = 0;
+    const cumGFArr = slice.map(g => { cGF += g.goals_scored; return cGF; });
+    const cumGAArr = slice.map(g => { cGA += g.goals_conceded; return cGA; });
+    const lgAvgScoredArr = leagueAvgs ? labels.map((_, i) => +((i + 1) * leagueAvgs.avg_gf).toFixed(1)) : [];
+    const lgAvgConcededArr = leagueAvgs ? labels.map((_, i) => +((i + 1) * leagueAvgs.avg_ga).toFixed(1)) : [];
+    if (cumGoalsChartInst) cumGoalsChartInst.destroy();
+    cumGoalsChartInst = new Chart(document.getElementById('cumGoalsChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Goals Scored', data: cumGFArr, borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.08)', tension: 0.2, fill: false, pointRadius: 3 },
+          { label: 'Goals Conceded', data: cumGAArr, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.08)', tension: 0.2, fill: false, pointRadius: 3 },
+          ...(leagueAvgs ? [
+            { label: 'Lg Avg Scored', data: lgAvgScoredArr, borderColor: '#4ade80', borderDash: [5, 4], backgroundColor: 'transparent', tension: 0, fill: false, pointRadius: 0, borderWidth: 1.5 },
+            { label: 'Lg Avg Conceded', data: lgAvgConcededArr, borderColor: '#f87171', borderDash: [5, 4], backgroundColor: 'transparent', tension: 0, fill: false, pointRadius: 0, borderWidth: 1.5 },
+          ] : []),
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true }
+        }
       }
-    }
-  });
+    });
+  }
 
-  // --- Chart 4: Goals timing ---
+  // --- Chart 4: Cumulative Goal Difference ---
+  let cumGdChartInst;
+  function renderCumGdChart(slice) {
+    slice = slice || getWindowSlice();
+    const labels = sliceLabels(slice);
+    let cumGdRunning = 0;
+    const cumGdArr = slice.map(g => {
+      cumGdRunning += (g.goal_difference != null ? g.goal_difference : (g.goals_scored - g.goals_conceded));
+      return cumGdRunning;
+    });
+    if (cumGdChartInst) cumGdChartInst.destroy();
+    cumGdChartInst = new Chart(document.getElementById('cumGdChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Cumulative GD',
+          data: cumGdArr,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,0.1)',
+          tension: 0.2,
+          fill: true,
+          pointRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+  }
+
+  function renderTimeCharts() {
+    const slice = getWindowSlice();
+    renderGdChart(slice);
+    renderAvgPtsChart(slice);
+    renderCumGoalsChart(slice);
+    renderCumGdChart(slice);
+  }
+  renderTimeCharts();
+
+  // --- Chart 5: Goals timing ---
   if (timing.length) {
     new Chart(document.getElementById('timingChart'), {
       type: 'bar',
@@ -492,6 +620,115 @@
 
     buildTypeChart('goalTypeScoredChart',  'scored',   ['rgba(99,102,241,0.85)', 'rgba(245,158,11,0.85)', 'rgba(34,211,238,0.85)']);
     buildTypeChart('goalTypeConcededChart', 'conceded', ['rgba(99,102,241,0.5)',  'rgba(245,158,11,0.5)',  'rgba(34,211,238,0.5)']);
+  }
+
+  // --- Strength over Time ---
+  if (document.getElementById('strengthChart') && leagueAvgs) {
+    // Build round-ordered list of cumulative totals using chronoGames
+    let cumGF = 0, cumGA = 0, cumGP = 0;
+    const roundLabels = [];
+    const attData = [], defData = [], strData = [];
+
+    const lgAvgGF = leagueAvgs.avg_gf;
+    const lgAvgGA = leagueAvgs.avg_ga;
+    const lgAvgPts = leagueAvgs.avg_pts;
+
+    chronoGames.forEach((g, i) => {
+      cumGF += g.goals_scored   || 0;
+      cumGA += g.goals_conceded || 0;
+      cumGP += 1;
+
+      const gfPerGame = cumGF / cumGP;
+      const gaPerGame = cumGA / cumGP;
+
+      const att = lgAvgGF > 0 ? parseFloat((gfPerGame / lgAvgGF).toFixed(2)) : null;
+      const def = lgAvgGA > 0 && gaPerGame > 0 ? parseFloat((lgAvgGA / gaPerGame).toFixed(2)) : null;
+      // overall = 0.4*att + 0.4*def + 0.2*form (fallback: equal weight att+def)
+      const str = att != null && def != null ? parseFloat((0.5 * att + 0.5 * def).toFixed(2)) : null;
+
+      roundLabels.push(`R${g.game_round || i + 1}`);
+      attData.push(att);
+      defData.push(def);
+      strData.push(str);
+    });
+
+    new Chart(document.getElementById('strengthChart'), {
+      type: 'line',
+      data: {
+        labels: roundLabels,
+        datasets: [
+          {
+            label: 'Attack',
+            data: attData,
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56,189,248,0.06)',
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 2,
+            fill: false,
+          },
+          {
+            label: 'Defence',
+            data: defData,
+            borderColor: '#a78bfa',
+            backgroundColor: 'rgba(167,139,250,0.06)',
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 2,
+            fill: false,
+          },
+          {
+            label: 'Overall',
+            data: strData,
+            borderColor: '#f8fafc',
+            backgroundColor: 'rgba(248,250,252,0.04)',
+            tension: 0.3,
+            pointRadius: 2,
+            borderWidth: 2.5,
+            borderDash: [],
+            fill: false,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 14 } },
+          tooltip: {
+            callbacks: {
+              title: (items) => {
+                const g = chronoGames[items[0].dataIndex];
+                if (!g) return '';
+                const loc = g.game_location === 'home' ? 'vs' : '@';
+                return `${roundLabels[items[0].dataIndex]}  ${loc} ${g.opponent_name || ''}`;
+              },
+              label: (item) => {
+                const sign = item.raw >= 1 ? '+' : '';
+                return `${item.dataset.label}: ${item.raw}  (${sign}${((item.raw - 1) * 100).toFixed(0)}% vs avg)`;
+              }
+            }
+          },
+          annotation: {
+            annotations: {
+              avgLine: { type: 'line', yMin: 1, yMax: 1, borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderDash: [4, 4] }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: {
+            min: 0.3,
+            max: 2.0,
+            ticks: {
+              color: '#64748b',
+              font: { size: 10 },
+              callback: v => v === 1.0 ? 'avg' : v.toFixed(1),
+            },
+            grid: { color: ctx => ctx.tick.value === 1.0 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.04)' }
+          }
+        }
+      }
+    });
   }
 </script>
 

@@ -4,3 +4,4 @@ select
     team_abb,
     league_id
 from {{ ref('snp_teams') }}
+where dbt_valid_to is null

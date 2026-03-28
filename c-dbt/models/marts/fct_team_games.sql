@@ -8,11 +8,7 @@ select
     its.goals_conceded,
     its.goal_difference,
     its.points,
-    case
-        when its.points = 3 then 'W'
-        when its.points = 1 then 'D'
-        else 'L'
-    end as result,
+    {{ result_from_points('its.points') }} as result,
     g.game_date,
     g.game_round,
     its.opponent_team_id,

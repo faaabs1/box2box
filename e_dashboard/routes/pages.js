@@ -7,12 +7,16 @@ router.get('/', async (req, res) => {
     const [leagues, seasons] = await Promise.all([db.fetchLeagues(), db.fetchSeasons()]);
     const leagueId = req.query.league_id || (leagues[0]?.league_id ?? null);
     const seasonId = req.query.season_id || (seasons[0]?.season_id ?? null);
-    const [table, teams, topScorers] = await Promise.all([
-      db.fetchLeagueTable(leagueId, seasonId),
+    const location = req.query.location || 'all';
+    const [table, teams, topScorers, leagueGoalStats, strengthMap] = await Promise.all([
+      db.fetchLeagueTable(leagueId, seasonId, location === 'all' ? null : location),
       db.fetchTeams(leagueId),
       db.fetchTopScorers(leagueId, seasonId),
+      db.fetchLeagueGoalStats(leagueId, seasonId),
+      db.fetchTeamStrengths(leagueId, seasonId),
     ]);
-    res.render('league', { leagues, seasons, table, teams, topScorers, selectedLeague: leagueId, selectedSeason: seasonId, myTeamId: db.MY_TEAM_ID, page: 'league' });
+    const tableWithStrength = table.map(t => ({ ...t, ...(strengthMap[t.team_id] || {}) }));
+    res.render('league', { leagues, seasons, table: tableWithStrength, teams, topScorers, leagueGoalStats, selectedLeague: leagueId, selectedSeason: seasonId, selectedLocation: location, myTeamId: db.MY_TEAM_ID, page: 'league' });
   } catch (e) {
     res.status(500).render('error', { message: e.message });
   }
