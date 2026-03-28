@@ -1,0 +1,278 @@
+<%- include('partials/header', { title: 'Players', page, myTeamId }) %>
+
+<!-- Filters -->
+<div class="flex flex-wrap items-end gap-3 mb-8">
+  <div>
+    <label class="block text-xs text-slate-400 mb-1 font-medium">Team</label>
+    <select id="teamSelect" onchange="applyFilters()">
+      <option value="">All Teams</option>
+      <% allTeams.forEach(t => { %>
+        <option value="<%= t.team_id %>" <%= String(t.team_id) === String(selectedTeamId) ? 'selected' : '' %>><%= t.team_name %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-slate-400 mb-1 font-medium">Season</label>
+    <select id="seasonSelect" onchange="applyFilters()">
+      <option value="">All Seasons</option>
+      <% seasons.forEach(s => { %>
+        <option value="<%= s.season_id %>" <%= String(s.season_id) === String(selectedSeason) ? 'selected' : '' %>><%= s.season_name %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-slate-400 mb-1 font-medium">Position</label>
+    <select id="posFilter" onchange="filterCards()">
+      <option value="">All Positions</option>
+      <option value="GK">GK</option>
+      <option value="DEF">DEF</option>
+      <option value="MID">MID</option>
+      <option value="FWD">FWD</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-slate-400 mb-1 font-medium">Min. Goals</label>
+    <input type="number" id="minGoals" min="0" value="0" placeholder="0" style="width:70px" onchange="filterCards()" />
+  </div>
+  <div>
+    <label class="block text-xs text-slate-400 mb-1 font-medium">Search</label>
+    <input type="text" id="nameSearch" placeholder="Name…" style="width:140px" oninput="filterCards()" />
+  </div>
+</div>
+
+<!-- Player Count -->
+<p class="text-sm text-slate-400 mb-4"><span id="visibleCount"><%= players.length %></span> players · <span class="text-slate-600">click a card to see match history</span></p>
+
+<!-- Cards Grid -->
+<div id="cardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+  <% players.forEach(p => { %>
+    <%
+      const posColors = {
+        GK: { bg:'rgba(234,179,8,0.12)', border:'rgba(234,179,8,0.35)', text:'#fbbf24' },
+        DEF: { bg:'rgba(59,130,246,0.12)', border:'rgba(59,130,246,0.35)', text:'#60a5fa' },
+        MID: { bg:'rgba(34,197,94,0.12)', border:'rgba(34,197,94,0.35)', text:'#4ade80' },
+        FWD: { bg:'rgba(239,68,68,0.12)', border:'rgba(239,68,68,0.35)', text:'#f87171' },
+      };
+      const pos = (p.position1 || '').toUpperCase();
+      const midSet = new Set(['CM','DM','CDM','AM','CAM','LAM','RAM','LM','RM','DMF','AMF']);
+      const posGroup = pos.startsWith('GK') ? 'GK'
+        : (pos.startsWith('M') || midSet.has(pos)) ? 'MID'
+        : pos.startsWith('D') ? 'DEF'
+        : (pos.startsWith('F') || pos.startsWith('A') || pos.startsWith('W') || pos.startsWith('S')) ? 'FWD'
+        : '';
+      const pc = posColors[posGroup] || { bg:'rgba(148,163,184,0.1)', border:'rgba(148,163,184,0.3)', text:'#94a3b8' };
+    %>
+    <div class="player-card card p-4 flex flex-col gap-3 transition-all hover:-translate-y-1 hover:border-white/25 cursor-pointer"
+         data-name="<%= (p.full_name || '').toLowerCase() %>"
+         data-pos="<%= posGroup %>"
+         data-goals="<%= p.goals %>"
+         data-player-id="<%= p.player_id || '' %>"
+         data-player-name="<%= p.full_name %>"
+         onclick="openPlayerPanel(this)">
+
+      <!-- Card Header -->
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg border-2"
+               style="background:<%= pc.bg %>; border-color:<%= pc.border %>; color:<%= pc.text %>;">
+            <%= p.jersey_number != null ? p.jersey_number : '?' %>
+          </div>
+          <div>
+            <p class="font-semibold text-white text-sm leading-tight"><%= p.full_name %></p>
+            <p class="text-xs text-slate-400 mt-0.5"><%= p.position1 || '—' %><% if (p.position2) { %> / <%= p.position2 %><% } %></p>
+          </div>
+        </div>
+        <% if (posGroup) { %>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-md" style="background:<%= pc.bg %>; color:<%= pc.text %>; border:1px solid <%= pc.border %>"><%= posGroup %></span>
+        <% } %>
+      </div>
+
+      <!-- Stats Grid -->
+      <% const g90 = p.minutes >= 1 ? (p.goals / p.minutes * 90).toFixed(2) : '—'; %>
+      <div class="grid grid-cols-4 gap-2 pt-1 border-t border-white/5">
+        <div class="text-center">
+          <p class="text-xl font-bold text-white"><%= p.goals %></p>
+          <p class="text-xs text-slate-500">Goals</p>
+        </div>
+        <div class="text-center border-x border-white/5">
+          <p class="text-xl font-bold text-amber-300"><%= g90 %></p>
+          <p class="text-xs text-slate-500">G/90</p>
+        </div>
+        <div class="text-center border-r border-white/5">
+          <p class="text-xl font-bold text-white"><%= p.apps %></p>
+          <p class="text-xs text-slate-500">Apps</p>
+        </div>
+        <div class="text-center">
+          <p class="text-xl font-bold text-white"><%= p.minutes %></p>
+          <p class="text-xs text-slate-500">Mins</p>
+        </div>
+      </div>
+
+      <!-- Extra Info -->
+      <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 pt-1 border-t border-white/5">
+        <span>Starts: <span class="text-slate-200"><%= p.starts %></span></span>
+        <span>Sub In: <span class="text-slate-200"><%= p.subs_in %></span></span>
+        <% if (p.strong_foot) { %><span>Foot: <span class="text-slate-200"><%= p.strong_foot %></span></span><% } %>
+        <% if (p.age) { %><span>Age: <span class="text-slate-200"><%= p.age %></span></span><% } %>
+      </div>
+    </div>
+  <% }) %>
+
+  <% if (!players.length) { %>
+    <div class="col-span-full text-center text-slate-500 py-16">
+      <p class="text-4xl mb-3">👤</p>
+      <p>No players found for the selected filters.</p>
+    </div>
+  <% } %>
+</div>
+
+<!-- ── Player Games Slide-over Panel ─────────────────────────── -->
+<div id="panelBackdrop" class="fixed inset-0 bg-black/60 z-40 hidden" onclick="closePanel()"></div>
+
+<div id="playerPanel" class="fixed top-0 right-0 h-full w-full sm:w-[480px] z-50 flex flex-col shadow-2xl border-l border-white/10"
+     style="background:#080e1d; transform:translateX(100%); transition:transform 0.28s cubic-bezier(.4,0,.2,1);">
+  <div class="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+    <div>
+      <h2 id="panelName" class="font-bold text-white text-base"></h2>
+      <p id="panelSubtitle" class="text-xs text-slate-400 mt-0.5">Match history</p>
+    </div>
+    <button onclick="closePanel()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors text-xl leading-none">×</button>
+  </div>
+  <div id="panelBody" class="flex-1 overflow-y-auto p-4">
+    <div id="panelLoading" class="flex flex-col items-center justify-center h-40 gap-3 text-slate-500 hidden">
+      <div class="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full" style="animation:spin .8s linear infinite"></div>
+      <p class="text-sm">Loading matches…</p>
+    </div>
+    <div id="panelContent"></div>
+  </div>
+</div>
+
+<style>
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+
+<script>
+  function applyFilters() {
+    const team = document.getElementById('teamSelect').value;
+    const season = document.getElementById('seasonSelect').value;
+    let url = '/players?';
+    if (team) url += `team_id=${team}&`;
+    if (season) url += `season_id=${season}`;
+    window.location.href = url;
+  }
+
+  function filterCards() {
+    const pos = document.getElementById('posFilter').value;
+    const minGoals = parseInt(document.getElementById('minGoals').value || '0', 10);
+    const search = document.getElementById('nameSearch').value.toLowerCase().trim();
+    let visible = 0;
+    document.querySelectorAll('.player-card').forEach(card => {
+      const show = (!pos || card.dataset.pos === pos)
+        && parseInt(card.dataset.goals, 10) >= minGoals
+        && (!search || card.dataset.name.includes(search));
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    document.getElementById('visibleCount').textContent = visible;
+  }
+
+  // ── Slide-over panel ─────────────────────────────────────────
+  function openPlayerPanel(card) {
+    const playerId = card.dataset.playerId;
+    if (!playerId) return;
+    document.getElementById('panelName').textContent = card.dataset.playerName;
+    document.getElementById('panelSubtitle').textContent = 'Match history';
+    document.getElementById('panelContent').innerHTML = '';
+    document.getElementById('panelLoading').classList.remove('hidden');
+    document.getElementById('panelBackdrop').classList.remove('hidden');
+    document.getElementById('playerPanel').style.transform = 'translateX(0)';
+    document.body.style.overflow = 'hidden';
+
+    fetch(`/api/player-games/${playerId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.error) { renderPanelError(data.error); return; }
+        renderGames(Array.isArray(data) ? data : []);
+      })
+      .catch(e => renderPanelError(e.message));
+  }
+
+  function renderGames(games) {
+    document.getElementById('panelLoading').classList.add('hidden');
+    const content = document.getElementById('panelContent');
+    if (!games.length) {
+      content.innerHTML = '<p class="text-slate-500 text-sm text-center py-10">No match data found</p>';
+      return;
+    }
+
+    const wins  = games.filter(g => g.result === 'W').length;
+    const draws = games.filter(g => g.result === 'D').length;
+    const losses = games.filter(g => g.result === 'L').length;
+    const goals  = games.reduce((s, g) => s + (g.goals || 0), 0);
+    const starts = games.filter(g => g.started).length;
+    const mins   = games.reduce((s, g) => s + (g.min_played || 0), 0);
+    const g90 = mins >= 1 ? (goals / mins * 90).toFixed(2) : '—';
+    document.getElementById('panelSubtitle').textContent = `${games.length} apps · ${starts} starts`;
+
+    const rCls = { W:'badge-W', D:'badge-D', L:'badge-L' };
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '–';
+
+    const rows = games.map(g => {
+      const role = g.started
+        ? `<span class="text-green-400 text-xs" title="Started">▶ started</span>`
+        : `<span class="text-amber-400 text-xs">↑ sub${g.sub_in_min ? ' ' + g.sub_in_min + "'" : ''}</span>`;
+      const goalBadge = g.goals > 0 ? `<span class="text-amber-400 text-xs ml-1">⚽${g.goals > 1 ? '×' + g.goals : ''}</span>` : '';
+      const venue = g.game_location === 'home'
+        ? `<span class="text-xs text-blue-400 bg-blue-500/15 border border-blue-500/30 px-1.5 py-0.5 rounded">H</span>`
+        : `<span class="text-xs text-slate-300 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded">A</span>`;
+      return `
+        <a href="/game/${g.game_id}"
+           class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group border border-transparent hover:border-white/8">
+          <span class="text-xs text-slate-500 w-14 shrink-0">${fmtDate(g.game_date)}</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${venue}
+              <span class="text-sm text-white truncate">${g.opponent_name}</span>
+              ${goalBadge}
+            </div>
+            <div class="mt-0.5">${role}${g.min_played ? ` <span class="text-slate-600 text-xs">· ${g.min_played}'</span>` : ''}</div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="font-mono text-sm text-white">${g.goals_scored}–${g.goals_conceded}</span>
+            <span class="badge ${rCls[g.result] || ''}">${g.result}</span>
+          </div>
+          <span class="text-slate-600 group-hover:text-slate-400">›</span>
+        </a>`;
+    }).join('');
+
+    content.innerHTML = `
+      <div class="grid grid-cols-4 gap-2 mb-3">
+        <div class="card p-3 text-center"><p class="text-xl font-bold text-white">${games.length}</p><p class="text-xs text-slate-500">Apps</p></div>
+        <div class="card p-3 text-center"><p class="text-xl font-bold text-amber-400">${goals}</p><p class="text-xs text-slate-500">Goals</p></div>
+        <div class="card p-3 text-center"><p class="text-xl font-bold text-amber-300">${g90}</p><p class="text-xs text-slate-500">G/90</p></div>
+        <div class="card p-3 text-center"><p class="text-xl font-bold text-white">${mins}'</p><p class="text-xs text-slate-500">Mins</p></div>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <span class="badge badge-W flex-1 text-center py-1">${wins}W</span>
+        <span class="badge badge-D flex-1 text-center py-1">${draws}D</span>
+        <span class="badge badge-L flex-1 text-center py-1">${losses}L</span>
+      </div>
+      <div class="flex flex-col gap-0.5">${rows}</div>`;
+  }
+
+  function renderPanelError(msg) {
+    document.getElementById('panelLoading').classList.add('hidden');
+    document.getElementById('panelContent').innerHTML =
+      `<p class="text-red-400 text-sm text-center py-10">Error: ${msg}</p>`;
+  }
+
+  function closePanel() {
+    document.getElementById('playerPanel').style.transform = 'translateX(100%)';
+    document.getElementById('panelBackdrop').classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+</script>
+
+<%- include('partials/footer') %>
