@@ -31,7 +31,7 @@ router.get('/team', async (req, res) => {
     const location = req.query.location || null;
     // Auto-detect league for this team if not provided
     if (!leagueId) leagueId = await db.getTeamLeague(teamId);
-    const [games, stats, timing, leagueAvgs, teamScorers, playerMinutes, goalsByType] = await Promise.all([
+    const [games, stats, timing, leagueAvgs, teamScorers, playerMinutes, goalsByType, strengthMap] = await Promise.all([
       db.fetchTeamGames(teamId, seasonId, leagueId, location),
       db.fetchTeamSeasonStats(teamId, seasonId, leagueId, location),
       db.fetchTeamGoalsTiming(teamId, seasonId, location),
@@ -39,10 +39,12 @@ router.get('/team', async (req, res) => {
       db.fetchTopScorers(null, seasonId, 3, teamId),
       db.fetchTeamPlayerMinutes(teamId, seasonId),
       db.fetchTeamGoalsByType(teamId, seasonId, location),
+      db.fetchTeamStrengths(leagueId, seasonId),
     ]);
+    const teamStrength = strengthMap[teamId] || null;
     const selectedTeam = allTeams.find(t => t.team_id === teamId);
     const gamesPlayed = games.length || 1;
-    res.render('team', { leagues, seasons, allTeams, games, stats, timing, leagueAvgs, gamesPlayed, teamScorers, playerMinutes, goalsByType, selectedTeam, selectedTeamId: teamId, selectedSeason: seasonId, selectedLeague: leagueId, selectedLocation: location, myTeamId: db.MY_TEAM_ID, page: 'team' });
+    res.render('team', { leagues, seasons, allTeams, games, stats, timing, leagueAvgs, gamesPlayed, teamScorers, playerMinutes, goalsByType, teamStrength, selectedTeam, selectedTeamId: teamId, selectedSeason: seasonId, selectedLeague: leagueId, selectedLocation: location, myTeamId: db.MY_TEAM_ID, page: 'team' });
   } catch (e) {
     res.status(500).render('error', { message: e.message });
   }

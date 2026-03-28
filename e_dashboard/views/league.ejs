@@ -53,7 +53,7 @@
 <!-- Charts -->
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
   <div>
-    <h2 class="text-lg font-semibold text-white mb-3">xPts − Pts <span class="text-xs font-normal text-slate-400 ml-1"><%= isAllVenues ? 'season total' : selectedLocation + ' only' %></span></h2>
+    <h2 class="text-lg font-semibold text-white mb-3">DC xPts − Pts <span class="text-xs font-normal text-slate-400 ml-1"><%= isAllVenues ? 'season total' : selectedLocation + ' only' %></span></h2>
     <div class="card p-4">
       <canvas id="ptsXptsChart"></canvas>
     </div>
@@ -94,14 +94,17 @@
               <th class="px-4 py-3 text-center text-orange-400" title="Form: points in last 5 games vs league avg">FORM</th>
               <th class="px-4 py-3 text-center font-bold text-white" title="Overall strength (40% attack + 40% defence + 20% form)">STR</th>
               <% if (isAllVenues) { %>
-              <th class="px-4 py-3 text-center text-teal-400" title="Pythagorean expected points (GF^1.8 / (GF^1.8 + GA^1.8) × GP × 3). Anderson & Dowie formula.">xPts</th>
-              <th class="px-4 py-3 text-center text-slate-400 col-pos" title="Performance position vs actual position (Pythagorean expectation). ↑ = deserves better, ↓ = got lucky">±POS</th>
+              <th class="px-4 py-3 text-center text-teal-400" title="DC schedule-adjusted expected points: P(win)×3 + P(draw)×1 summed across all played matches">xPts</th>
+              <th class="px-4 py-3 text-center text-sky-300" title="Opponent-adjusted goals: each goal weighted by opponent DC defence rating">Adj GF</th>
+              <th class="px-4 py-3 text-center text-emerald-400" title="DC model expected goals for (λ = mu × ATT × DEF × gamma)">xG For</th>
+              <th class="px-4 py-3 text-center text-slate-400" title="Actual goals minus DC xG (positive = outperforming model)">G−xG</th>
+              <th class="px-4 py-3 text-center text-slate-400 col-pos" title="Actual position vs DC xPts rank. ↑ = deserves better position, ↓ = got lucky">±POS</th>
               <% } %>
             </tr>
           </thead>
           <tbody id="standingsBody">
             <% table.forEach((row, i) => { %>
-              <tr class="border-t border-white/5 <%= row.team_id == myTeamId ? 'my-row' : '' %>"<% if (isAllVenues) { %> data-pts="<%= row.points %>" data-xpts="<%= row.pyth_points || 0 %>"<% } %>>  
+              <tr class="border-t border-white/5 <%= row.team_id == myTeamId ? 'my-row' : '' %>"<% if (isAllVenues) { %> data-pts="<%= row.points %>" data-xpts="<%= row.dc_xpts || 0 %>"<% } %>>  
                 <td class="px-4 py-3 text-slate-400 text-xs"><%= i + 1 %></td>
                 <td class="px-4 py-3 font-medium text-white flex items-center gap-2">
                   <% if (row.team_id == myTeamId) { %><span class="text-amber-400">★</span><% } %>
@@ -138,11 +141,20 @@
                 <td class="px-4 py-3 text-center text-sm <%= strColor %>"><%= row.overall_strength ?? '–' %></td>
                 <% if (isAllVenues) { %>
                 <%
+                  const dcXptsDiff = row.dc_xpts != null ? (row.dc_xpts - row.points) : null;
+                  const xPtsColor = dcXptsDiff == null ? 'text-slate-500'
+                    : dcXptsDiff >= 3  ? 'text-teal-300 font-semibold'
+                    : dcXptsDiff >= 0  ? 'text-teal-400'
+                    : dcXptsDiff >= -3 ? 'text-slate-400'
+                    : 'text-red-400';
+                  const gxgVal = row.goals_above_xg;
+                  const gxgColor = gxgVal == null ? 'text-slate-500'
+                    : gxgVal > 0 ? 'text-green-400'
+                    : gxgVal < 0 ? 'text-red-400'
+                    : 'text-slate-400';
                   const actualPos = i + 1;
-                  const pythPos = row.pyth_rank;
-                  const posDiff = pythPos != null ? actualPos - pythPos : null;
-                  // posDiff > 0: actual rank is lower than pyth rank → team underperforming (↑ they should be higher)
-                  // posDiff < 0: actual rank is higher than pyth rank → team overperforming (↓ they should be lower)
+                  const dcRank = row.dc_xpts_rank;
+                  const posDiff = dcRank != null ? actualPos - dcRank : null;
                   const posLabel = posDiff == null ? '–'
                     : posDiff === 0 ? '='
                     : posDiff > 0 ? '↑' + posDiff
@@ -151,21 +163,16 @@
                     : posDiff > 0 ? 'text-green-400 font-semibold'
                     : 'text-red-400 font-semibold';
                 %>
-                <%
-                  const pythPtsDiff = row.pyth_points != null ? (row.pyth_points - row.points) : null;
-                  const xPtsColor = pythPtsDiff == null ? 'text-slate-500'
-                    : pythPtsDiff >= 3 ? 'text-teal-300 font-semibold'
-                    : pythPtsDiff >= 0 ? 'text-teal-400'
-                    : pythPtsDiff >= -3 ? 'text-slate-400'
-                    : 'text-red-400';
-                %>
-                <td class="px-4 py-3 text-center text-xs <%= xPtsColor %>" title="xPts: <%= row.pyth_points ?? '?' %>, Actual: <%= row.points %>. Diff: <%= pythPtsDiff != null ? (pythPtsDiff > 0 ? '+' : '') + pythPtsDiff.toFixed(1) : '?' %>"><%= row.pyth_points ?? '–' %></td>
-                <td class="px-4 py-3 text-center text-xs col-pos <%= posColor %>" title="Pyth rank: <%= pythPos ?? '?' %>, Actual: <%= actualPos %>. Pyth pts: <%= row.pyth_points ?? '?' %>"><%= posLabel %></td>
+                <td class="px-4 py-3 text-center text-xs <%= xPtsColor %>" title="DC xPts: <%= row.dc_xpts ?? '?' %>, Actual: <%= row.points %>. Diff: <%= dcXptsDiff != null ? (dcXptsDiff > 0 ? '+' : '') + dcXptsDiff.toFixed(1) : '?' %>"><%= row.dc_xpts ?? '–' %></td>
+                <td class="px-4 py-3 text-center text-xs text-sky-300"><%= row.adj_goals_for ?? '–' %></td>
+                <td class="px-4 py-3 text-center text-xs text-emerald-400"><%= row.xg_for ?? '–' %></td>
+                <td class="px-4 py-3 text-center text-xs <%= gxgColor %>"><%= gxgVal != null ? (gxgVal > 0 ? '+' : '') + gxgVal : '–' %></td>
+                <td class="px-4 py-3 text-center text-xs col-pos <%= posColor %>" title="DC xPts rank: <%= dcRank ?? '?' %>, Actual: <%= actualPos %>. DC xPts: <%= row.dc_xpts ?? '?' %>"><%= posLabel %></td>
                 <% } %>
               </tr>
             <% }) %>
             <% if (!table.length) { %>
-              <tr><td colspan="<%= isAllVenues ? 13 : 11 %>" class="text-center text-slate-500 py-10">No data for selected filters</td></tr>
+              <tr><td colspan="<%= isAllVenues ? 16 : 11 %>" class="text-center text-slate-500 py-10">No data for selected filters</td></tr>
             <% } %>
           </tbody>
         </table>
@@ -190,6 +197,7 @@
           <th class="px-4 py-3 text-center">Mins</th>
           <th class="px-4 py-3 text-center">G/90</th>
           <th class="px-4 py-3 text-center font-bold text-amber-400">Goals</th>
+          <th class="px-4 py-3 text-center text-sky-400" title="Goals weighted by opponent DC defence rating">Adj G</th>
         </tr>
       </thead>
       <tbody>
@@ -202,6 +210,7 @@
             <td class="px-4 py-3 text-center text-slate-300"><%= s.minutes %>'</td>
             <td class="px-4 py-3 text-center text-amber-300"><%= s.g90 %></td>
             <td class="px-4 py-3 text-center font-bold text-amber-400"><%= s.goals %></td>
+            <td class="px-4 py-3 text-center text-sky-300"><%= s.adj_goals %></td>
           </tr>
         <% }) %>
       </tbody>
@@ -243,22 +252,12 @@
     document.querySelectorAll('.col-pos').forEach(el => el.style.display = isPts ? '' : 'none');
   }
 
-  // Helper: compute Pythagorean expected points from goals (exponent 1.8)
-  function calcPyth(gf, ga, gp) {
-    if (!gf || !ga || !gp) return null;
-    const g18 = Math.pow(gf, 1.8), a18 = Math.pow(ga, 1.8);
-    return parseFloat((g18 / (g18 + a18) * gp * 3).toFixed(1));
-  }
-
   const isAllVenues = <%= isAllVenues ? 'true' : 'false' %>;
 
-  // xPts − Pts difference bar (works for all venues using table-data goals)
+  // DC xPts − Pts difference bar
   if (document.getElementById('ptsXptsChart')) {
     const diffData = tableData.map(r => {
-      // For split views always recompute from split goals — pyth_points on the row is season-total
-      const xp = isAllVenues && r.pyth_points != null
-        ? parseFloat(r.pyth_points)                                   // pre-computed season total
-        : calcPyth(r.goals_scored, r.goals_conceded, r.games_played); // split-specific
+      const xp = r.dc_xpts != null ? parseFloat(r.dc_xpts) : null;
       return xp != null ? parseFloat((xp - r.points).toFixed(1)) : null;
     });
     const diffColors = tableData.map((r, i) => {
@@ -287,15 +286,13 @@
               title: (items) => tableData[items[0].dataIndex].team_name,
               label: (item) => {
                 const r = tableData[item.dataIndex];
-                const xp = isAllVenues && r.pyth_points != null
-                  ? parseFloat(r.pyth_points)
-                  : calcPyth(r.goals_scored, r.goals_conceded, r.games_played);
+                const xp = r.dc_xpts != null ? parseFloat(r.dc_xpts) : null;
                 const d = item.raw;
                 const sign = d > 0 ? '+' : '';
                 return [
-                  `xPts − Pts: ${sign}${d}`,
+                  `DC xPts − Pts: ${sign}${d}`,
                   `Actual Pts: ${r.points}`,
-                  `xPts: ${xp ?? '–'}`,
+                  `DC xPts: ${xp ?? '–'}`,
                   d > 0 ? '↑ Underperforming luck' : d < 0 ? '↓ Overperforming luck' : 'On par',
                 ];
               }

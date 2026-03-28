@@ -1,9 +1,9 @@
 -- Run once in Supabase SQL editor to create the DC tables.
--- Lives in public schema so dc_fit.py can upsert without schema switching.
+-- Lives in analytics_analytics schema alongside the dbt models.
 
 -- Team-level DC parameters (one row per team × season × fit_type)
 -- fit_type: 'season' = full-season fit, 'form' = last-N-rounds fit
-create table if not exists public.dim_team_dc_params (
+create table if not exists analytics_analytics.dim_team_dc_params (
     team_id    integer      not null,
     season_id  text,
     fit_type   text         not null default 'season',  -- 'season' | 'form'
@@ -17,7 +17,7 @@ create table if not exists public.dim_team_dc_params (
 
 -- Per-match DC outputs (xG and xPts for both sides)
 -- home_xpts / away_xpts are SCHEDULE-ADJUSTED: beating a strong side gives more xPts
-create table if not exists public.dim_game_dc_xpts (
+create table if not exists analytics_analytics.dim_game_dc_xpts (
     game_id      integer      not null,
     season_id    text,
     fit_type     text         not null default 'season',
@@ -33,3 +33,7 @@ create table if not exists public.dim_game_dc_xpts (
     fitted_at    timestamptz  not null default now(),
     primary key (game_id, fit_type)
 );
+
+-- Grant write access so the API key used by dc_fit.py can upsert
+grant all on analytics_analytics.dim_team_dc_params to anon, authenticated, service_role;
+grant all on analytics_analytics.dim_game_dc_xpts    to anon, authenticated, service_role;

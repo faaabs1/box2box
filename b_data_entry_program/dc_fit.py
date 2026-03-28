@@ -238,7 +238,7 @@ def upsert_team_params(client, fit_result, season_id, fit_type):
         }
         for i, t in enumerate(fit_result["teams"])
     ]
-    client.schema("public") \
+    client.schema(SCHEMA) \
         .from_("dim_team_dc_params") \
         .upsert(rows, on_conflict="team_id,season_id,fit_type") \
         .execute()
@@ -247,7 +247,7 @@ def upsert_team_params(client, fit_result, season_id, fit_type):
 
 def upsert_game_xpts(client, xpts_df, fit_type):
     rows = xpts_df.assign(fit_type=fit_type).to_dict("records")
-    client.schema("public") \
+    client.schema(SCHEMA) \
         .from_("dim_game_dc_xpts") \
         .upsert(rows, on_conflict="game_id,fit_type") \
         .execute()
@@ -291,6 +291,10 @@ def main():
     print(f"\n=== Dixon-Coles fit  [fit_type={fit_type}] ===")
     matches = load_matches(client, args.season, args.form_rounds)
 
+    # Resolve season_id — PK column cannot be NULL
+    season_id = args.season or str(matches["season_id"].iloc[0])
+    print(f"  season_id={season_id}")
+
     if len(matches) < 20:
         print(f"  WARNING: only {len(matches)} matches — params will be noisy. Recommend 30+.")
 
@@ -313,7 +317,7 @@ def main():
         print(f"{team_names.get(tid, str(tid)):<28} {xp:>8.1f}")
 
     if not args.dry_run:
-        upsert_team_params(client, result, args.season, fit_type)
+        upsert_team_params(client, result, season_id, fit_type)
         upsert_game_xpts(client, xpts_df, fit_type)
     else:
         print("\n[dry-run] DB writes skipped.")

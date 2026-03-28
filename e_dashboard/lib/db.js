@@ -85,7 +85,7 @@ async function fetchTopScorers(leagueId, seasonId, limit = 10, teamId = null) {
   }
 
   let statsQ = sb.schema(SCHEMA).from('fct_player_stats')
-    .select('player_id, team_id, goals_total, apps_total, minutes_total')
+    .select('player_id, team_id, goals_total, adj_goals, apps_total, minutes_total')
     .in('team_id', teamIds)
     .gt('goals_total', 0)
     .order('goals_total', { ascending: false })
@@ -106,6 +106,7 @@ async function fetchTopScorers(leagueId, seasonId, limit = 10, teamId = null) {
     player_name: playerMap[s.player_id] || `#${s.player_id}`,
     team_name: teamMap[s.team_id]?.team_name || `Team ${s.team_id}`,
     goals: s.goals_total,
+    adj_goals: s.adj_goals != null ? parseFloat(s.adj_goals) : 0,
     apps: s.apps_total,
     minutes: s.minutes_total,
     g90: s.minutes_total >= 1 ? (s.goals_total / s.minutes_total * 90).toFixed(2) : '—',
@@ -158,7 +159,7 @@ async function fetchPlayers(teamId, seasonId) {
   const sb = getClient();
 
   let statsQuery = sb.schema(SCHEMA).from('fct_player_stats')
-    .select('player_id, team_id, season_id, minutes_total, starts_total, subs_in_total, apps_total, goals_total');
+    .select('player_id, team_id, season_id, minutes_total, starts_total, subs_in_total, apps_total, goals_total, adj_goals');
   if (teamId) statsQuery = statsQuery.eq('team_id', parseInt(teamId, 10));
   if (seasonId) statsQuery = statsQuery.eq('season_id', seasonId);
 
@@ -185,6 +186,7 @@ async function fetchPlayers(teamId, seasonId) {
       strong_foot: p.strong_foot,
       age,
       goals: s.goals_total || 0,
+      adj_goals: s.adj_goals != null ? parseFloat(s.adj_goals) : 0,
       minutes: s.minutes_total || 0,
       starts: s.starts_total || 0,
       apps: s.apps_total || 0,
@@ -398,7 +400,7 @@ async function fetchTeamGoalsByType(teamId, seasonId, location) {
 async function fetchTeamStrengths(leagueId, seasonId) {
   const sb = getClient();
   let q = sb.schema(SCHEMA).from('fct_team_strength')
-    .select('team_id, attack_rating, defence_rating, form_rating, form_pts_last_5, overall_strength, pyth_points, pyth_rank');
+    .select('team_id, attack_rating, defence_rating, form_rating, form_pts_last_5, overall_strength, pyth_points, pyth_rank, dc_xpts, dc_xpts_rank, adj_goals_for, xg_for, goals_above_xg');
   if (leagueId) q = q.eq('league_id', leagueId);
   if (seasonId) q = q.eq('season_id', seasonId);
   const { data, error } = await q;

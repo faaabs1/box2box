@@ -54,26 +54,64 @@ latest_form as (
 dc_params as (
     select
         team_id,
-        season_id,
+        season_id::integer,
         dc_attack,
         dc_defense
-    from public.dim_team_dc_params
+    from analytics_analytics.dim_team_dc_params
     where fit_type = 'season'
+),
+
+-- Opponent-adjusted goals scored: each goal weighted by the DC defence rating of the
+-- opponent. Scoring vs dc_defense=2.0 → 2.0 adj goals; vs 0.5 → 0.5. Falls back to
+-- 1.0 per goal (= raw count) when DC params are not available for that opponent.
+team_adj_goals as (
+    select
+        g.goal_for_team_id               as team_id,
+        g.season_id,
+        round(sum(coalesce(dc.dc_defense, 1.0))::numeric, 1) as adj_goals_for
+    from {{ ref('fct_goals') }} g
+    left join analytics_analytics.dim_team_dc_params dc
+        on  g.goal_against_team_id = dc.team_id
+        and g.season_id            = dc.season_id::integer
+        and dc.fit_type            = 'season'
+    where g.own_goal = false
+    group by g.goal_for_team_id, g.season_id
+),
+
+-- DC model expected goals per team per season (home + away combined)
+team_xg_agg as (
+    select season_id::integer as season_id, home_team_id as team_id, sum(home_xg) as xg_for
+    from analytics_analytics.dim_game_dc_xpts
+    where fit_type = 'season'
+    group by season_id::integer, home_team_id
+
+    union all
+
+    select season_id::integer, away_team_id, sum(away_xg)
+    from analytics_analytics.dim_game_dc_xpts
+    where fit_type = 'season'
+    group by season_id::integer, away_team_id
+),
+
+team_xg as (
+    select team_id, season_id, round(sum(xg_for)::numeric, 1) as xg_for
+    from team_xg_agg
+    group by team_id, season_id
 ),
 
 -- Schedule-adjusted xPts: sum DC expected points per team per season
 dc_xpts_agg as (
-    select season_id, home_team_id as team_id, sum(home_xpts) as dc_xpts
-    from public.dim_game_dc_xpts
+    select season_id::integer, home_team_id as team_id, sum(home_xpts) as dc_xpts
+    from analytics_analytics.dim_game_dc_xpts
     where fit_type = 'season'
-    group by season_id, home_team_id
+    group by season_id::integer, home_team_id
 
     union all
 
-    select season_id, away_team_id as team_id, sum(away_xpts) as dc_xpts
-    from public.dim_game_dc_xpts
+    select season_id::integer, away_team_id as team_id, sum(away_xpts) as dc_xpts
+    from analytics_analytics.dim_game_dc_xpts
     where fit_type = 'season'
-    group by season_id, away_team_id
+    group by season_id::integer, away_team_id
 ),
 
 dc_xpts as (
@@ -133,6 +171,17 @@ base as (
         -- Schedule-adjusted xPts from DC (NULL until dc_fit.py has been run)
         round(dx.dc_xpts::numeric, 1) as dc_xpts,
 
+        -- Opponent-adjusted goals for (NULL until dc_fit.py has been run)
+        tag.adj_goals_for,
+
+        -- DC model expected goals for (NULL until dc_fit.py has been run)
+        txg.xg_for,
+
+        -- Actual goals minus model-predicted xG (positive = overperforming model)
+        case when ts.goals_scored is not null and txg.xg_for is not null
+            then round((ts.goals_scored - txg.xg_for)::numeric, 1)
+        end as goals_above_xg,
+
         -- Pythagorean xPts kept as reference / fallback
         round(
             power(ts.goals_scored::numeric, 1.8)
@@ -156,6 +205,12 @@ base as (
     left join dc_xpts dx
         on ts.team_id   = dx.team_id
         and ts.season_id = dx.season_id
+    left join team_adj_goals tag
+        on ts.team_id   = tag.team_id
+        and ts.season_id = tag.season_id
+    left join team_xg txg
+        on ts.team_id   = txg.team_id
+        and ts.season_id = txg.season_id
 )
 
 select
