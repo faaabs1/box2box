@@ -124,7 +124,7 @@
 <% if (!selectedLocation && leagueAvgs) { %>
 <!-- Strength over Time -->
 <div class="mb-8">
-  <h2 class="text-lg font-semibold text-white mb-3">Strength over Time <span class="text-xs font-normal text-slate-400 ml-1">rolling vs league avg &middot; 1.0 = average</span></h2>
+  <h2 class="text-lg font-semibold text-white mb-3">Strength over Time <span class="text-xs font-normal text-slate-400 ml-1">rolling naive (lines) &middot; DC season estimate (dashed) &middot; 1.0 = average</span></h2>
   <div class="card p-4">
     <canvas id="strengthChart" height="120"></canvas>
   </div>
@@ -277,7 +277,8 @@
 <script>
   const games = <%- JSON.stringify(games) %>;
   const timing = <%- JSON.stringify(timing || []) %>;
-  const leagueAvgs = <%- JSON.stringify(leagueAvgs || null) %>;
+  const leagueAvgs   = <%- JSON.stringify(leagueAvgs   || null) %>;
+  const teamStrength = <%- JSON.stringify(teamStrength || null) %>;
   const playerMinutes = <%- JSON.stringify(playerMinutes || []) %>;
   const goalsByType = <%- JSON.stringify(goalsByType || []) %>;
 
@@ -643,7 +644,6 @@
 
       const att = lgAvgGF > 0 ? parseFloat((gfPerGame / lgAvgGF).toFixed(2)) : null;
       const def = lgAvgGA > 0 && gaPerGame > 0 ? parseFloat((lgAvgGA / gaPerGame).toFixed(2)) : null;
-      // overall = 0.4*att + 0.4*def + 0.2*form (fallback: equal weight att+def)
       const str = att != null && def != null ? parseFloat((0.5 * att + 0.5 * def).toFixed(2)) : null;
 
       roundLabels.push(`R${g.game_round || i + 1}`);
@@ -652,44 +652,70 @@
       strData.push(str);
     });
 
+    // DC season estimates — flat reference lines across all rounds
+    const dcAtt = teamStrength && teamStrength.attack_rating  != null ? teamStrength.attack_rating  : null;
+    const dcDef = teamStrength && teamStrength.defence_rating != null ? teamStrength.defence_rating : null;
+    const dcStr = teamStrength && teamStrength.overall_strength != null ? teamStrength.overall_strength : null;
+    const dcFlat = (val) => val != null ? roundLabels.map(() => val) : [];
+
+    const datasets = [
+      {
+        label: 'Attack (rolling)',
+        data: attData,
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56,189,248,0.06)',
+        tension: 0.3, pointRadius: 2, borderWidth: 2, fill: false,
+      },
+      {
+        label: 'Defence (rolling)',
+        data: defData,
+        borderColor: '#a78bfa',
+        backgroundColor: 'rgba(167,139,250,0.06)',
+        tension: 0.3, pointRadius: 2, borderWidth: 2, fill: false,
+      },
+      {
+        label: 'Overall (rolling)',
+        data: strData,
+        borderColor: '#f8fafc',
+        backgroundColor: 'rgba(248,250,252,0.04)',
+        tension: 0.3, pointRadius: 2, borderWidth: 2.5, fill: false,
+      },
+    ];
+
+    if (dcAtt != null) datasets.push({
+      label: `DC ATT (${dcAtt})`,
+      data: dcFlat(dcAtt),
+      borderColor: '#7dd3fc',
+      borderDash: [6, 3],
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0,
+      fill: false,
+    });
+    if (dcDef != null) datasets.push({
+      label: `DC DEF (${dcDef})`,
+      data: dcFlat(dcDef),
+      borderColor: '#c4b5fd',
+      borderDash: [6, 3],
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0,
+      fill: false,
+    });
+    if (dcStr != null) datasets.push({
+      label: `DC STR (${dcStr})`,
+      data: dcFlat(dcStr),
+      borderColor: 'rgba(248,250,252,0.5)',
+      borderDash: [6, 3],
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0,
+      fill: false,
+    });
+
     new Chart(document.getElementById('strengthChart'), {
       type: 'line',
-      data: {
-        labels: roundLabels,
-        datasets: [
-          {
-            label: 'Attack',
-            data: attData,
-            borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56,189,248,0.06)',
-            tension: 0.3,
-            pointRadius: 2,
-            borderWidth: 2,
-            fill: false,
-          },
-          {
-            label: 'Defence',
-            data: defData,
-            borderColor: '#a78bfa',
-            backgroundColor: 'rgba(167,139,250,0.06)',
-            tension: 0.3,
-            pointRadius: 2,
-            borderWidth: 2,
-            fill: false,
-          },
-          {
-            label: 'Overall',
-            data: strData,
-            borderColor: '#f8fafc',
-            backgroundColor: 'rgba(248,250,252,0.04)',
-            tension: 0.3,
-            pointRadius: 2,
-            borderWidth: 2.5,
-            borderDash: [],
-            fill: false,
-          },
-        ]
-      },
+      data: { labels: roundLabels, datasets },
       options: {
         responsive: true,
         plugins: {
@@ -703,6 +729,7 @@
                 return `${roundLabels[items[0].dataIndex]}  ${loc} ${g.opponent_name || ''}`;
               },
               label: (item) => {
+                if (item.raw == null) return null;
                 const sign = item.raw >= 1 ? '+' : '';
                 return `${item.dataset.label}: ${item.raw}  (${sign}${((item.raw - 1) * 100).toFixed(0)}% vs avg)`;
               }
