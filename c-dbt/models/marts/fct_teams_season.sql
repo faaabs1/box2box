@@ -2,11 +2,12 @@ select
     team_id,
     league_id,
     game_location,
-    sum(goals_scored) as total_goals_scored,
-    sum(goals_conceded) as total_goals_conceded,
-    sum(goal_difference) as total_goal_difference,
-    sum(points) as total_points,
-    sum(points_allowed) as total_points_allowed,
-    season_id
+    season_id,
+    count(*)             as games_played,
+    sum(goals_scored)    as goals_scored,
+    sum(goals_conceded)  as goals_conceded,
+    sum(goal_difference) as goal_difference,
+    sum(points)          as points,
+    sum(points_allowed)  as points_allowed
 from {{ref('int_team_stats')}}
-group by team_id, game_location,season_id, league_id
+group by team_id, game_location, season_id, league_id

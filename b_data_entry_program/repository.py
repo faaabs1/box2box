@@ -136,7 +136,8 @@ class FootballRepository:
     
         payload_player = {
             "firstname": firstname,
-            "lastname": lastname
+            "lastname": lastname,
+            "team_id": team_id
         }
         self.save_player_to_player(payload_player)
 
